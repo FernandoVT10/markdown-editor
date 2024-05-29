@@ -1,4 +1,4 @@
-import { Types, Token } from "./types";
+import { Types, Token, NUMBER_OF_HEADERS, BEGIN_HEADER_TYPE_LIST } from "./types";
 import { Queue } from "./utils";
 
 export class Lexer {
@@ -45,14 +45,18 @@ export class Lexer {
     return { type: blockType, value, startPos };
   }
 
+  private processCloseBlock(blockType: Types, value: string): Token {
+    const startPos = this.bufferCursor;
+
+    this.advance(value.length);
+    this.parentQueue.deleteLastItem();
+
+    return { type: blockType, value, startPos };
+  }
+
   private processBlockType(beginBlockType: Types, endBlockType: Types, value: string): Token {
     if(this.parentQueue.getLastItem() === beginBlockType) {
-      const startPos = this.bufferCursor;
-
-      this.advance(value.length);
-      this.parentQueue.deleteLastItem();
-
-      return { type: endBlockType, value, startPos };
+      return this.processCloseBlock(endBlockType, value);
     } else {
       return this.processOpenBlock(beginBlockType, value);
     }
@@ -72,11 +76,41 @@ export class Lexer {
 
     if(!c) return undefined;
 
-    // INLINE CODE BLOCK (`code`)
+    switch(this.parentQueue.getLastItem()) {
+      case Types.BeginInlineCode: 
+        if(c === "`") {
+          return this.processCloseBlock(Types.EndInlineCode, "`");
+        } else {
+          return this.processChar();
+        }
+      case Types.BeginLinkText:
+        if(c === "]") {
+          const token = this.processCloseBlock(Types.EndLinkText, "]");
+
+          // processCloseBlock advances the bufferCursor
+          if(this.getCurrentChar() !== "(") {
+            // deletes Types.BeginLink when the next character doesn't follow the link syntax
+            this.parentQueue.deleteLastItem();
+          }
+          
+          return token;
+        } else {
+          return this.processChar();
+        }
+      case Types.BeginLinkDest:
+        if(c === ")") {
+          const token = this.processCloseBlock(Types.EndLinkDest, ")");
+          // deletes Types.BeginLink from the queue
+          this.parentQueue.deleteLastItem();
+          return token;
+        } else {
+          return this.processChar();
+        }
+    }
+
+    // OPEN INLINE CODE BLOCK (`code`)
     if(c === "`") {
-      return this.processBlockType(Types.BeginInlineCode, Types.EndInlineCode, "`");
-    } else if(this.parentQueue.getLastItem() === Types.BeginInlineCode) {
-      return this.processChar();
+      return this.processOpenBlock(Types.BeginInlineCode, "`");
     }
 
     // BOLD & ITALIC (** and *)
@@ -92,9 +126,30 @@ export class Lexer {
 
     const p_c = this.getPreviousChar();
 
-    // HEADER 1
-    if(c === "#" && this.getNextChar(1) === " " && (p_c === "" || p_c === "\n")) {
-      return this.processOpenBlock(Types.BeginH1, "# ");
+    // HEADERS
+    if(c === "#" && (p_c === "" || p_c === "\n")) {
+      let count = 1;
+
+      while(this.getNextChar(count) === "#") {
+        count++;
+      }
+
+      if(count <= NUMBER_OF_HEADERS && this.getNextChar(count) === " ") {
+        const hashes = "".padStart(count, "#");
+        const value = hashes + " ";
+
+        return this.processOpenBlock(BEGIN_HEADER_TYPE_LIST[count - 1], value);
+      }
+    }
+
+    // LINK
+    if(c === "[") {
+      this.parentQueue.addItem(Types.BeginLink);
+      return this.processOpenBlock(Types.BeginLinkText, "[");
+    }
+
+    if(c === "(" && this.parentQueue.getLastItem() === Types.BeginLink) {
+      return this.processOpenBlock(Types.BeginLinkDest, "(");
     }
 
     return this.processChar();
@@ -112,6 +167,10 @@ export class Lexer {
     const token = this.tokens[this.tokenCursor];
     this.tokenCursor++;
     return token;
+  }
+
+  peekNextToken(offset = 0): Token | undefined {
+    return this.tokens[this.tokenCursor + offset];
   }
 
   foreachTokenWhile(predicate: (token: Token) => boolean): void {

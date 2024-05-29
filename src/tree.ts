@@ -1,5 +1,6 @@
 import { Types, TYPES_HTML_TAGS, Token } from "./types";
-import { Queue, setCursorAtNode } from "./utils";
+import { Queue, isPointInRange } from "./utils";
+import Cursor from "./cursor";
 
 abstract class Node {
   protected startPos = 0;
@@ -11,6 +12,7 @@ abstract class Node {
 
   abstract getHTMLElement(): HTMLElement;
   abstract updateCursor(cursorPos: number): void;
+  abstract updateCursorPos(node: globalThis.Node, offset: number): boolean;
 }
 
 export class TextNode extends Node {
@@ -30,11 +32,20 @@ export class TextNode extends Node {
   }
 
   updateCursor(cursorPos: number): void {
-    if(cursorPos >= this.startPos && cursorPos <= this.endPos) {
+    if(isPointInRange(cursorPos, this.startPos, this.endPos)) {
       const offset = cursorPos - this.startPos;
       const node = this.textEl.firstChild as ChildNode;
-      setCursorAtNode(node, offset);
+      Cursor.setCursorAtNode(node, offset);
     }
+  }
+
+  updateCursorPos(node: globalThis.Node, offset: number): boolean {
+    if(this.textEl.contains(node)) {
+      Cursor.setPos(this.startPos + offset);
+      return true;
+    }
+
+    return false;
   }
 }
 
@@ -104,17 +115,145 @@ export class BlockNode extends Node {
   }
 
   updateCursor(cursorPos: number): void {
-    if(cursorPos >= this.startPos && cursorPos <= this.endPos) {
+    if(isPointInRange(cursorPos, this.startPos, this.endPos)) {
       this.activateBlock();
 
-      for(const node of this.children) {
-        node.updateCursor(cursorPos);
+      for(const child of this.children) {
+        child.updateCursor(cursorPos);
       }
     } else if(!this.closeBlockSymbol) {
       this.activateBlock();
     } else {
       this.deactivateBlock();
     }
+  }
+
+  updateCursorPos(node: globalThis.Node, offset: number): boolean {
+    for(const child of this.children) {
+      if(child.updateCursorPos(node, offset)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+}
+
+export class LinkNode extends Node {
+  private isLinkTextClosed = false;
+  private containsDest = false;
+  private isLinkDestClosed = false;
+  private isLinkProperlyClosed = false;
+
+  private linkText: string;
+  private linkDest?: string;
+
+  private containerEl: HTMLSpanElement;
+
+  private linkEl: HTMLAnchorElement;
+  private linkTextNode: TextNode;
+
+  private markdownTextNode?: TextNode;
+
+  private isActive = false;
+
+  constructor(linkText: string, startPos: number) {
+    super();
+    this.startPos = startPos;
+    this.linkText = linkText;
+
+    this.containerEl = document.createElement("span");
+    this.linkEl = document.createElement("a");
+    // the first character of a link is a "[" so the text starts after this.
+    this.linkTextNode = new TextNode(this.linkText, this.startPos + 1);
+
+    this.linkEl.appendChild(this.linkTextNode.getHTMLElement());
+    this.containerEl.appendChild(this.linkEl);
+  }
+
+  private activateBlock(): void {
+    if(this.isActive) return;
+    this.isActive = true;
+
+    if(this.markdownTextNode) {
+      this.containerEl.innerHTML = "";
+      this.containerEl.appendChild(this.markdownTextNode.getHTMLElement());
+    }
+  }
+
+  private deactivateBlock(): void {
+    if(!this.isActive) return;
+    this.isActive = false;
+
+    this.containerEl.innerHTML = "";
+    this.containerEl.appendChild(this.linkEl);
+  }
+
+  getHTMLElement(): HTMLElement {
+    return this.containerEl;
+  }
+
+  updateCursor(cursorPos: number): void {
+    if(isPointInRange(cursorPos, this.startPos, this.endPos)) {
+      this.activateBlock();
+
+      this.markdownTextNode?.updateCursor(cursorPos);
+    } else if(!this.isLinkProperlyClosed) {
+      this.activateBlock();
+    } else {
+      this.deactivateBlock();
+    }
+  }
+
+  updateCursorPos(node: globalThis.Node, offset: number): boolean {
+    // if "isActive" it means that the markdownTextNode is the one being displayed
+    if(this.isActive) {
+      return this.markdownTextNode?.updateCursorPos(node, offset) || false;
+    }
+
+    return this.linkTextNode.updateCursorPos(node, offset);
+  }
+
+  closeLinkText() {
+    this.isLinkTextClosed = true;
+  }
+
+  closeLinkDest() {
+    this.isLinkDestClosed = true;
+  }
+
+  setLinkDest(dest: string): void {
+    this.linkDest = dest;
+    this.linkEl.href = dest;
+    this.containsDest = true;
+  }
+
+  closeLink(): void {
+    let text = "[" + this.linkText;
+
+    // the 1 represents the "[" character at the start of all links
+    this.endPos = this.startPos + this.linkText.length + 1;
+
+    if(this.isLinkTextClosed) {
+      // this represents closing the link text with "]"
+      this.endPos++;
+      text += "]";
+    }
+
+    if(this.containsDest) {
+      // the 1 represents the "(" character
+      this.endPos += (this.linkDest as string).length + 1;
+      text += "(" + this.linkDest;
+    }
+
+    if(this.isLinkDestClosed) {
+      // this represents closing the link dest with ")"
+      this.endPos++;
+      text += ")";
+      this.isLinkProperlyClosed = true;
+    }
+
+    this.markdownTextNode = new TextNode(text, this.startPos);
   }
 }
 
@@ -153,6 +292,12 @@ export default class Tree {
   updateCursor(cursorPos: number): void {
     for(const node of this.nodes) {
       node.updateCursor(cursorPos);
+    }
+  }
+
+  updateCursorPos(targetNode: globalThis.Node, offset: number): void {
+    for(const node of this.nodes) {
+      if(node.updateCursorPos(targetNode, offset)) break;
     }
   }
 

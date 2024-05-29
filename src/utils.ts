@@ -21,14 +21,10 @@ export class Queue<T> {
   }
 }
 
-export function setCursorAtNode(node: globalThis.Node, offset: number): void {
-  const range = document.createRange();
-  range.setStart(node, offset);
+export function isalnum(text: string): boolean {
+  return /[A-Z0-9]/i.test(text);
+}
 
-  const selection = window.getSelection();
-  if(selection) {
-    selection.removeAllRanges();
-    selection.addRange(range);
-    selection.collapseToEnd();
-  }
+export function isPointInRange(point: number, rangeStart: number, rangeEnd: number): boolean {
+  return point >= rangeStart && point <= rangeEnd;
 }

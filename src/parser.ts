@@ -1,6 +1,21 @@
-import Tree, { BlockNode, TextNode } from "./tree";
+import Tree, { BlockNode, TextNode, LinkNode, NewLineNode } from "./tree";
 import { Types, Token } from "./types";
 import { Lexer } from "./lexer";
+
+function getTextSequence(lexer: Lexer): string {
+  let text = "";
+
+  lexer.foreachTokenWhile(token => {
+    if(token.type === Types.Text) {
+      text += token.value;
+      return true;
+    }
+
+    return false;
+  });
+
+  return text;
+}
 
 function parser(content: string): Tree {
   const lexer = new Lexer(content);
@@ -15,6 +30,11 @@ function parser(content: string): Tree {
       case Types.BeginItalicText:
       case Types.BeginInlineCode:
       case Types.BeginH1:
+      case Types.BeginH2:
+      case Types.BeginH3:
+      case Types.BeginH4:
+      case Types.BeginH5:
+      case Types.BeginH6:
         const blockNode = new BlockNode(token);
         tree.addChild(blockNode);
         tree.openBlock(blockNode);
@@ -23,25 +43,50 @@ function parser(content: string): Tree {
       case Types.EndItalicText:
       case Types.EndInlineCode:
       case Types.EndH1:
+      case Types.EndH2:
+      case Types.EndH3:
+      case Types.EndH4:
+      case Types.EndH5:
+      case Types.EndH6:
         tree.closeBlock(token.value, token.startPos);
         break;
-      case Types.Text:
-        let text = token.value as string;
+      case Types.Text: {
+        // this variable contains all the values of the Types.Text tokens
+        const text = token.value + getTextSequence(lexer);
         const startPos = token.startPos;
-
-        lexer.foreachTokenWhile(token => {
-          if(token.type === Types.Text) {
-            text += token.value;
-            return true;
-          }
-
-          return false;
-        });
 
         const textNode = new TextNode(text, startPos);
 
         tree.addChild(textNode);
         break;
+      }
+      case Types.BeginLinkText: {
+        const linkText = getTextSequence(lexer);
+        const startPos = token.startPos;
+
+        const linkNode = new LinkNode(linkText, startPos);
+
+        const endTextToken = lexer.getNextToken();
+        if(endTextToken) linkNode.closeLinkText();
+
+        if(lexer.peekNextToken(0)?.type === Types.BeginLinkDest) {
+          // consuming the Types.BeginLinkDest token
+          lexer.getNextToken();
+
+          linkNode.setLinkDest(getTextSequence(lexer));
+
+          const endDestToken = lexer.getNextToken();
+          if(endDestToken) {
+            linkNode.closeLinkDest();
+          }
+        }
+
+        linkNode.closeLink();
+
+        tree.addChild(linkNode);
+
+        break;
+      }
       default:
         throw new Error(`Error: ${token.type} is not a valid token type`);
     }
