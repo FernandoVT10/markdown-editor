@@ -98,7 +98,7 @@ class Editor {
       // DEBUG SHORTCUTS
       if(DEBUG && e.ctrlKey) {
         if(e.key === "c") {
-          console.log("Current content:", this.content);
+          console.log("Current content:", this.content.replace("\n", "\\n"));
           return;
         } else if(e.key === "f") {
           this.updateContent("[Hello](https://fvtblog.com)");
@@ -128,8 +128,7 @@ class Editor {
           }
           break;
         case "Enter":
-          Cursor.setPos(Cursor.getPos() + 1);
-          this.updateContent(this.content + "\n");
+          this.addCharacter("\n");
           break;
         default:
           this.addCharacter(e.key);
@@ -151,9 +150,9 @@ class Editor {
       const node = selection.focusNode;
       const offset = selection.focusOffset;
 
-      if(!node || node.nodeType !== Node.TEXT_NODE) return;
-
-      this.tree.updateCursorPos(node, offset);
+      if(node) {
+        this.tree.updateCursorPos(node, offset);
+      }
     });
   }
 }

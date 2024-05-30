@@ -1,4 +1,4 @@
-import Tree, { BlockNode, TextNode, LinkNode, NewLineNode } from "./tree";
+import Tree, { InlineBlockNode, TextNode, LinkNode } from "./tree";
 import { Types, Token } from "./types";
 import { Lexer } from "./lexer";
 
@@ -35,7 +35,7 @@ function parser(content: string): Tree {
       case Types.BeginH4:
       case Types.BeginH5:
       case Types.BeginH6:
-        const blockNode = new BlockNode(token);
+        const blockNode = new InlineBlockNode(token);
         tree.addChild(blockNode);
         tree.openBlock(blockNode);
         break;
@@ -48,7 +48,7 @@ function parser(content: string): Tree {
       case Types.EndH4:
       case Types.EndH5:
       case Types.EndH6:
-        tree.closeBlock(token.value, token.startPos);
+        tree.closeBlock(token);
         break;
       case Types.Text: {
         // this variable contains all the values of the Types.Text tokens
@@ -87,6 +87,9 @@ function parser(content: string): Tree {
 
         break;
       }
+      case Types.NewLine:
+        tree.addNewLine(token.startPos);
+        break;
       default:
         throw new Error(`Error: ${token.type} is not a valid token type`);
     }

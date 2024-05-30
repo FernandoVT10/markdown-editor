@@ -28,6 +28,8 @@ export enum Types {
   EndLinkText,
   BeginLinkDest,
   EndLinkDest,
+
+  NewLine,
 };
 
 export const TYPES_HTML_TAGS: Record<number, string> = {

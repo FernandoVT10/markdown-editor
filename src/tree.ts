@@ -1,5 +1,6 @@
 import { Types, TYPES_HTML_TAGS, Token } from "./types";
 import { Queue, isPointInRange } from "./utils";
+
 import Cursor from "./cursor";
 
 abstract class Node {
@@ -13,6 +14,26 @@ abstract class Node {
   abstract getHTMLElement(): HTMLElement;
   abstract updateCursor(cursorPos: number): void;
   abstract updateCursorPos(node: globalThis.Node, offset: number): boolean;
+
+  public printRange(spaces = 0): void {
+    console.log("".padStart(spaces, " "), `[${this.startPos}, ${this.endPos}]`);
+  }
+}
+
+abstract class BlockNode extends Node {
+  protected children: Node[] = [];
+
+  abstract closeBlock(token: Token): void;
+  abstract closeUnclosedBlock(endPos: number): void;
+  abstract addChild(node: Node): void;
+
+  public printRange(spaces = 0): void {
+    console.log("".padStart(spaces, " "), `[${this.startPos}, ${this.endPos}]`);
+
+    for(const child of this.children) {
+      child.printRange(spaces + 2);
+    }
+  }
 }
 
 export class TextNode extends Node {
@@ -21,7 +42,14 @@ export class TextNode extends Node {
   constructor(text: string, startPos: number) {
     super();
     this.textEl = document.createElement("span");
-    this.textEl.innerHTML = text.replace(/ /g, "&nbsp;");
+
+    for(const c of text) {
+      if(c === " ") {
+        this.textEl.innerHTML += "&nbsp;";
+      } else {
+        this.textEl.innerText += c;
+      }
+    }
 
     this.startPos = startPos;
     this.endPos = startPos + text.length;
@@ -49,8 +77,7 @@ export class TextNode extends Node {
   }
 }
 
-export class BlockNode extends Node {
-  private children: Node[] = [];
+export class InlineBlockNode extends BlockNode {
   private blockEl: HTMLElement;
   private type: Types;
   private openBlockSymbol: string;
@@ -96,9 +123,11 @@ export class BlockNode extends Node {
     }
   }
 
-  closeBlock(closeBlockSymbol: string, endPos: number): void {
-    this.closeBlockSymbol = closeBlockSymbol;
-    this.endPos = endPos + closeBlockSymbol.length;
+  closeBlock(token: Token): void {
+    const symbol = token.value;
+    const endPos = token.startPos;
+    this.closeBlockSymbol = symbol;
+    this.endPos = endPos + symbol.length;
   }
 
   closeUnclosedBlock(endPos: number): void {
@@ -117,14 +146,14 @@ export class BlockNode extends Node {
   updateCursor(cursorPos: number): void {
     if(isPointInRange(cursorPos, this.startPos, this.endPos)) {
       this.activateBlock();
-
-      for(const child of this.children) {
-        child.updateCursor(cursorPos);
-      }
     } else if(!this.closeBlockSymbol) {
       this.activateBlock();
     } else {
       this.deactivateBlock();
+    }
+
+    for(const child of this.children) {
+      child.updateCursor(cursorPos);
     }
   }
 
@@ -257,10 +286,102 @@ export class LinkNode extends Node {
   }
 }
 
+class BRNode extends Node {
+  private brEl: HTMLBRElement;
+
+  constructor(startPos: number) {
+    super();
+    this.startPos = startPos;
+    this.endPos = startPos;
+
+    this.brEl = document.createElement("br");
+  }
+
+  updateCursor(cursorPos: number): void {
+    if(isPointInRange(cursorPos, this.startPos, this.endPos)) {
+      Cursor.setCursorAtNode(this.brEl, 0);
+    }
+  }
+
+  updateCursorPos(node: globalThis.Node, _: number): boolean {
+    if(node.isSameNode(this.brEl)) {
+      Cursor.setPos(this.startPos);
+      return true;
+    }
+
+    return false;
+  }
+
+  getHTMLElement(): HTMLElement {
+    return this.brEl;
+  }
+}
+
+class LineBlockNode extends BlockNode {
+  private lineEl: HTMLDivElement;
+
+  constructor(startPos: number) {
+    super();
+    this.startPos = startPos;
+
+    this.lineEl = document.createElement("div");
+  }
+
+  closeBlock(token: Token): void {
+    this.endPos = token.startPos;
+  }
+
+  closeUnclosedBlock(endPos: number): void {
+    this.endPos = endPos;
+    if(this.startPos + 1 === this.endPos) {
+      this.addChild(new BRNode(this.startPos + 1));
+    }
+  }
+
+  addChild(node: Node): void {
+    this.children.push(node);
+    this.lineEl.appendChild(node.getHTMLElement());
+  }
+
+  getHTMLElement(): HTMLElement {
+    return this.lineEl;
+  }
+
+  updateCursor(cursorPos: number): void {
+    for(const child of this.children) {
+      child.updateCursor(cursorPos);
+    }
+  }
+
+  updateCursorPos(node: globalThis.Node, offset: number): boolean {
+    if(this.startPos + 1 === this.endPos && node.isSameNode(this.lineEl)) {
+      Cursor.setPos(this.startPos + 1);
+      return true;
+    }
+
+    for(const child of this.children) {
+      if(child.updateCursorPos(node, offset)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+}
+
 export default class Tree {
   private nodes: Node[] = [];
 
   private openedBlocks = new Queue<BlockNode>;
+  private containerEl: HTMLDivElement;
+
+  constructor() {
+    this.containerEl = document.createElement("div");
+
+    const lineBlock = new LineBlockNode(0);
+    this.addChild(lineBlock);
+    this.openBlock(lineBlock);
+  }
 
   addChild(node: Node) {
     const lastOpenedBlock = this.openedBlocks.getLastItem();
@@ -268,6 +389,7 @@ export default class Tree {
       lastOpenedBlock.addChild(node);
     } else {
       this.nodes.push(node);
+      this.containerEl.appendChild(node.getHTMLElement());
     }
   }
 
@@ -275,10 +397,10 @@ export default class Tree {
     this.openedBlocks.addItem(node);
   }
 
-  closeBlock(closeBlockSymbol: string, endPos: number) {
+  closeBlock(token: Token): void {
     const lastOpenedBlock = this.openedBlocks.getLastItem();
     if(lastOpenedBlock) {
-      lastOpenedBlock.closeBlock(closeBlockSymbol, endPos);
+      lastOpenedBlock.closeBlock(token);
       this.openedBlocks.deleteLastItem();
     }
   }
@@ -291,6 +413,7 @@ export default class Tree {
 
   updateCursor(cursorPos: number): void {
     for(const node of this.nodes) {
+      node.printRange();
       node.updateCursor(cursorPos);
     }
   }
@@ -302,12 +425,15 @@ export default class Tree {
   }
 
   getHTMLPreview(): HTMLDivElement {
-    const div = document.createElement("div");
+    return this.containerEl;
+  }
 
-    for(const node of this.nodes) {
-      div.appendChild(node.getHTMLElement());
-    }
+  addNewLine(startPos: number): void {
+    this.closeUnclosedBlocks(startPos);
+    this.openedBlocks.clear();
 
-    return div;
+    const lineBlock = new LineBlockNode(startPos);
+    this.addChild(lineBlock);
+    this.openBlock(lineBlock);
   }
 }

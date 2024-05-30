@@ -76,6 +76,19 @@ export class Lexer {
 
     if(!c) return undefined;
 
+    // Line Break
+    if(c === "\n") {
+      this.parentQueue.clear();
+
+      const startPos = this.bufferCursor;
+
+      return {
+        type: Types.NewLine,
+        value: this.getCharAndAdvance(),
+        startPos,
+      }
+    }
+ 
     switch(this.parentQueue.getLastItem()) {
       case Types.BeginInlineCode: 
         if(c === "`") {

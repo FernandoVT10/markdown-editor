@@ -19,6 +19,14 @@ export class Queue<T> {
   getLastItem(): T | undefined {
     return this.items[this.itemsCount - 1];
   }
+
+  clear(): boolean {
+    while(this.itemsCount > 0) {
+      this.deleteLastItem();
+    }
+
+    return true;
+  }
 }
 
 export function isalnum(text: string): boolean {
