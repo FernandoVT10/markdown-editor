@@ -7,6 +7,11 @@ import "./styles.css";
 
 const DEBUG = true;
 
+function logInfo(text: string) {
+  const style = "color: #79aaeb;font-weight: bold;";
+  console.log("%c" + text, style);
+}
+
 class Editor {
   private container: HTMLDivElement;
   private tree: Tree | undefined;
@@ -29,11 +34,15 @@ class Editor {
   private updateContent(newContent: string) {
     this.content = newContent;
 
+    logInfo("Starting to parse...");
+    const t = Date.now();
+
     this.tree = parser(this.content);
 
-    this.container.innerHTML = "";
-    const htmlEl = this.tree.getHTMLPreview();
-    this.container.appendChild(htmlEl);
+    const ms = Date.now() - t;
+    logInfo(`Parsing took: ${ms}ms`);
+
+    this.tree.render(this.container);
 
     this.updateCursor();
   }
@@ -151,7 +160,7 @@ class Editor {
       const offset = selection.focusOffset;
 
       if(node) {
-        this.tree.updateCursorPos(node, offset);
+        // this.tree.updateCursorPos(node, offset);
       }
     });
   }

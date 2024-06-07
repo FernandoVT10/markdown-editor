@@ -1,197 +1,213 @@
-import { Types, Token, NUMBER_OF_HEADERS, BEGIN_HEADER_TYPE_LIST } from "./types";
-import { Queue } from "./utils";
+import { Token, Types } from "./tokens";
 
-export class Lexer {
+export default class Lexer {
   private buffer: string;
   private bufferCursor = 0;
-
-  private tokens: Token[] = [];
-  private tokenCursor = 0;
-
-  private parentQueue = new Queue<Types>;
 
   constructor(buffer: string) {
     this.buffer = buffer;
   }
 
-  private advance(n = 1) {
+  private isBufferEnd(): boolean {
+    return this.bufferCursor >= this.buffer.length;
+  }
+
+  private advance(n = 1): void {
     this.bufferCursor += n;
   }
 
-  private getCharAndAdvance(): string {
-    const c =  this.getCurrentChar();
-    this.advance();
-    return c;
+  private advanceWithChar(): string {
+    return this.buffer.charAt(this.bufferCursor++);
   }
 
-  private getCurrentChar(): string {
-    return this.buffer.charAt(this.bufferCursor);
-  }
-
-  private getPreviousChar(): string {
-    return this.buffer.charAt(this.bufferCursor - 1);
-  }
-
-  private getNextChar(offset = 0): string {
+  private peekChar(offset = 0): string {
+    if(this.isBufferEnd()) return "\0";
     return this.buffer.charAt(this.bufferCursor + offset);
   }
 
-  private processOpenBlock(blockType: Types, value: string): Token {
-    const startPos = this.bufferCursor;
-
-    this.advance(value.length);
-    this.parentQueue.addItem(blockType);
-
-    return { type: blockType, value, startPos };
+  private match(char: string): boolean {
+    return this.peekChar() === char;
   }
 
-  private processCloseBlock(blockType: Types, value: string): Token {
-    const startPos = this.bufferCursor;
-
-    this.advance(value.length);
-    this.parentQueue.deleteLastItem();
-
-    return { type: blockType, value, startPos };
+  private advanceIfMatch(char: string): boolean {
+    const bool = this.peekChar() === char;
+    if(bool) this.advance();
+    return bool;
   }
 
-  private processBlockType(beginBlockType: Types, endBlockType: Types, value: string): Token {
-    if(this.parentQueue.getLastItem() === beginBlockType) {
-      return this.processCloseBlock(endBlockType, value);
+  private processCode(startPos: number, tokens: Token[]): void {
+    let content = "", c = "";
+
+    while(!this.isBufferEnd() && (c = this.advanceWithChar()) !== "`") {
+      content += c;
+    }
+
+    tokens.push({
+      type: Types.Code,
+      range: [startPos, this.bufferCursor],
+      content,
+    });
+  }
+
+  private processBold(startPos: number, tokens: Token[]): void {
+    const inlineTokens = this.inlineTokens((c, nextC) => {
+      return !(c === "*" && nextC === "*");
+    });
+
+    // skip the last "*" since inlineTokens only consumes the first one
+    this.advanceIfMatch("*");
+
+    tokens.push({
+      type: Types.Bold,
+      range: [startPos, this.bufferCursor],
+      tokens: inlineTokens,
+    });
+  }
+
+  private processItalic(startPos: number, tokens: Token[]): void {
+    const inlineTokens = this.inlineTokens(c => {
+      return c !== "*";
+    });
+
+    tokens.push({
+      type: Types.Italic,
+      range: [startPos, this.bufferCursor],
+      tokens: inlineTokens,
+    });
+  }
+
+  private processText(c: string, startPos: number, tokens: Token[]): void {
+    const prevToken = tokens[tokens.length - 1];
+
+    if(prevToken && prevToken.type === Types.Text) {
+      prevToken.range[1] = startPos + 1;
+      prevToken.text += c;
     } else {
-      return this.processOpenBlock(beginBlockType, value);
+      tokens.push({
+        type: Types.Text,
+        text: c,
+        range: [startPos, startPos + 1]
+      });
     }
   }
 
-  private processChar(): Token {
-    const startPos = this.bufferCursor;
-    return {
-      type: Types.Text,
-      value: this.getCharAndAdvance(),
-      startPos,
-    };
+  private processHeader(startPos: number, tokens: Token[]): void {
+    let level = 0;
+
+    while(this.peekChar(level) === "#") {
+      level++;
+    }
+
+    const finalC = this.peekChar(level);
+    if(finalC === " " || finalC === "\0") {
+      // skip all the "#" and the space or "\0" characters
+      this.advance(level);
+      const inlineTokens = this.inlineTokens();
+
+      tokens.push({
+        type: Types.Header,
+        range: [startPos, this.bufferCursor],
+        tokens: inlineTokens,
+        level: level + 1,
+      });
+    }
   }
 
-  private consumeNextToken(): Token | undefined {
-    const c = this.getCurrentChar();
+  private processParagraph(startPos: number, tokens: Token[]): void {
+    // TODO: this should create a paragraph
+    this.bufferCursor--;
+    const inlineTokens = this.inlineTokens();
+    tokens.push({
+      type: Types.Paragraph,
+      range: [startPos, this.bufferCursor],
+      tokens: inlineTokens,
+    });
+  }
 
-    if(!c) return undefined;
+  private processLink(startPos: number, tokens: Token[]): void {
+    let text = "";
+    let c;
 
-    // Line Break
-    if(c === "\n") {
-      this.parentQueue.clear();
+    while(!this.isBufferEnd() && (c = this.advanceWithChar()) !== "]") {
+      text += c;
+    }
 
+    let dest = "";
+
+    if(this.advanceIfMatch("(")) {
+      while(!this.isBufferEnd() && (c = this.advanceWithChar()) !== ")") {
+        dest += c;
+      }
+    }
+
+    tokens.push({
+      type: Types.Link,
+      range: [startPos, this.bufferCursor],
+      text,
+      dest: dest.length > 0 ? dest : null,
+    });
+  }
+
+  private inlineTokens(predicate?: (c: string, nextC: string) => boolean): Token[] {
+    const tokens: Token[] = [];
+
+    while(!this.isBufferEnd() && !this.match("\n")) {
       const startPos = this.bufferCursor;
+      const c = this.advanceWithChar();
+      const nextC = this.peekChar();
 
-      return {
-        type: Types.NewLine,
-        value: this.getCharAndAdvance(),
-        startPos,
-      }
-    }
- 
-    switch(this.parentQueue.getLastItem()) {
-      case Types.BeginInlineCode: 
-        if(c === "`") {
-          return this.processCloseBlock(Types.EndInlineCode, "`");
-        } else {
-          return this.processChar();
-        }
-      case Types.BeginLinkText:
-        if(c === "]") {
-          const token = this.processCloseBlock(Types.EndLinkText, "]");
+      if(predicate && !predicate(c, nextC)) break;
 
-          // processCloseBlock advances the bufferCursor
-          if(this.getCurrentChar() !== "(") {
-            // deletes Types.BeginLink when the next character doesn't follow the link syntax
-            this.parentQueue.deleteLastItem();
+      switch(c) {
+        case "`":
+          this.processCode(startPos, tokens);
+          break;
+        case "*":
+          if(this.advanceIfMatch("*")) {
+            this.processBold(startPos, tokens);
+          } else {
+            this.processItalic(startPos, tokens);
           }
-          
-          return token;
-        } else {
-          return this.processChar();
-        }
-      case Types.BeginLinkDest:
-        if(c === ")") {
-          const token = this.processCloseBlock(Types.EndLinkDest, ")");
-          // deletes Types.BeginLink from the queue
-          this.parentQueue.deleteLastItem();
-          return token;
-        } else {
-          return this.processChar();
-        }
-    }
-
-    // OPEN INLINE CODE BLOCK (`code`)
-    if(c === "`") {
-      return this.processOpenBlock(Types.BeginInlineCode, "`");
-    }
-
-    // BOLD & ITALIC (** and *)
-    if(c === "*") {
-      if(this.getNextChar(1) === "*") {
-        // BOLD
-        return this.processBlockType(Types.BeginBoldText, Types.EndBoldText, "**");
-      } else {
-        // ITALIC
-        return this.processBlockType(Types.BeginItalicText, Types.EndItalicText, "*");
+          break;
+        case "[":
+          this.processLink(startPos, tokens);
+          break;
+        default:
+          this.processText(c, startPos, tokens);
+          break;
       }
     }
 
-    const p_c = this.getPreviousChar();
+    return tokens;
+  }
 
-    // HEADERS
-    if(c === "#" && (p_c === "" || p_c === "\n")) {
-      let count = 1;
+  private blockTokens(): Token[] {
+    const tokens: Token[] = [];
 
-      while(this.getNextChar(count) === "#") {
-        count++;
+    while(!this.isBufferEnd()) {
+      const startPos = this.bufferCursor;
+      const c = this.advanceWithChar();
+
+      switch(c) {
+        case "#":
+          this.processHeader(startPos, tokens);
+          break;
+        case "\n":
+          tokens.push({
+            type: Types.NewLine,
+            range: [startPos, startPos + 1],
+          });
+          // TODO: add the new line token
+          continue;
+        default: this.processParagraph(startPos, tokens);
       }
-
-      if(count <= NUMBER_OF_HEADERS && this.getNextChar(count) === " ") {
-        const hashes = "".padStart(count, "#");
-        const value = hashes + " ";
-
-        return this.processOpenBlock(BEGIN_HEADER_TYPE_LIST[count - 1], value);
-      }
     }
 
-    // LINK
-    if(c === "[") {
-      this.parentQueue.addItem(Types.BeginLink);
-      return this.processOpenBlock(Types.BeginLinkText, "[");
-    }
-
-    if(c === "(" && this.parentQueue.getLastItem() === Types.BeginLink) {
-      return this.processOpenBlock(Types.BeginLinkDest, "(");
-    }
-
-    return this.processChar();
+    return tokens;
   }
 
-  processTokens(): void {
-    let token: Token | undefined;
-
-    while((token = this.consumeNextToken()) !== undefined) {
-      this.tokens.push(token);
-    }
-  }
-
-  getNextToken(): Token | undefined {
-    const token = this.tokens[this.tokenCursor];
-    this.tokenCursor++;
-    return token;
-  }
-
-  peekNextToken(offset = 0): Token | undefined {
-    return this.tokens[this.tokenCursor + offset];
-  }
-
-  foreachTokenWhile(predicate: (token: Token) => boolean): void {
-    let token = this.tokens[this.tokenCursor];
-
-    while(token && predicate(token)) {
-      this.tokenCursor++;
-      token = this.tokens[this.tokenCursor];
-    }
+  scanTokens(): Token[] {
+    const tokens = this.blockTokens();
+    return tokens;
   }
 }

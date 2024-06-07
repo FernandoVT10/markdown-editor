@@ -1,3 +1,8 @@
+:root {
+  --code-text: hsl(214 48% 70%);
+  --strong-text: #79aaeb;
+}
+
 body {
   background: #010101;
   padding: 0;
@@ -17,4 +22,12 @@ body {
 
 h1, h2, h3, h4, h5, h6 {
   margin: 0;
+}
+
+code {
+  color: var(--code-text);
+}
+
+strong, i {
+  color: var(--strong-text);
 }

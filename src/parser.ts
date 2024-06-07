@@ -1,103 +1,61 @@
-import Tree, { InlineBlockNode, TextNode, LinkNode } from "./tree";
-import { Types, Token } from "./types";
-import { Lexer } from "./lexer";
+import Tree, { MDNode, Text, Paragraph, Italic, NewLine } from "./tree";
+import { Types, Token, BlockTokens } from "./tokens";
+import Lexer from "./lexer";
 
-function getTextSequence(lexer: Lexer): string {
-  let text = "";
+function printTokens(tokens: Token[], depth = 0): void {
+  const spaces = "".padStart(depth * 2, " ");
+  for(const token of tokens) {
+    const { type, range } = token;
+    console.log(`${spaces}${Types[type]}: [${range[0]}, ${range[1]}]`);
 
-  lexer.foreachTokenWhile(token => {
-    if(token.type === Types.Text) {
-      text += token.value;
-      return true;
+    if(Array.isArray((token as any).tokens)) {
+      printTokens((token as any).tokens, depth + 2);
+    }
+  }
+}
+
+function parseTokens(tokens: Token[]): MDNode[] {
+  const resNodes = [];
+
+  for(const [i, token] of tokens.entries()) {
+    let nodes: MDNode[] = [];
+    if(Array.isArray((token as BlockTokens).tokens)) {
+      nodes = parseTokens((token as BlockTokens).tokens);
     }
 
-    return false;
-  });
+    switch(token.type) {
+      case Types.Paragraph:
+        resNodes.push(new Paragraph(token.range, nodes))
+        break;
+      case Types.Text:
+        resNodes.push(new Text(token.text, token.range));
+        break;
+      case Types.Italic:
+        resNodes.push(new Italic(token.range, nodes));
+        break;
+      case Types.NewLine: {
+        const nextToken = tokens[i + 1];
 
-  return text;
+        if(!nextToken || nextToken.type === Types.NewLine) {
+          resNodes.push(new NewLine(token.range));
+        }
+      } break;
+      default:
+        throw new Error(`Error: ${Types[token.type]} is not a valid token`);
+    }
+  }
+
+  return resNodes;
 }
 
 function parser(content: string): Tree {
   const lexer = new Lexer(content);
-  lexer.processTokens();
 
-  const tree = new Tree;
-  let token: Token | undefined;
+  const tokens = lexer.scanTokens();
+  printTokens(tokens);
+  const nodes = parseTokens(tokens);
 
-  while((token = lexer.getNextToken()) !== undefined) {
-    switch(token.type) {
-      case Types.BeginBoldText:
-      case Types.BeginItalicText:
-      case Types.BeginInlineCode:
-      case Types.BeginH1:
-      case Types.BeginH2:
-      case Types.BeginH3:
-      case Types.BeginH4:
-      case Types.BeginH5:
-      case Types.BeginH6:
-        const blockNode = new InlineBlockNode(token);
-        tree.addChild(blockNode);
-        tree.openBlock(blockNode);
-        break;
-      case Types.EndBoldText:
-      case Types.EndItalicText:
-      case Types.EndInlineCode:
-      case Types.EndH1:
-      case Types.EndH2:
-      case Types.EndH3:
-      case Types.EndH4:
-      case Types.EndH5:
-      case Types.EndH6:
-        tree.closeBlock(token);
-        break;
-      case Types.Text: {
-        // this variable contains all the values of the Types.Text tokens
-        const text = token.value + getTextSequence(lexer);
-        const startPos = token.startPos;
-
-        const textNode = new TextNode(text, startPos);
-
-        tree.addChild(textNode);
-        break;
-      }
-      case Types.BeginLinkText: {
-        const linkText = getTextSequence(lexer);
-        const startPos = token.startPos;
-
-        const linkNode = new LinkNode(linkText, startPos);
-
-        const endTextToken = lexer.getNextToken();
-        if(endTextToken) linkNode.closeLinkText();
-
-        if(lexer.peekNextToken(0)?.type === Types.BeginLinkDest) {
-          // consuming the Types.BeginLinkDest token
-          lexer.getNextToken();
-
-          linkNode.setLinkDest(getTextSequence(lexer));
-
-          const endDestToken = lexer.getNextToken();
-          if(endDestToken) {
-            linkNode.closeLinkDest();
-          }
-        }
-
-        linkNode.closeLink();
-
-        tree.addChild(linkNode);
-
-        break;
-      }
-      case Types.NewLine:
-        tree.addNewLine(token.startPos);
-        break;
-      default:
-        throw new Error(`Error: ${token.type} is not a valid token type`);
-    }
-  }
-
-  tree.closeUnclosedBlocks(content.length);
-
-  return tree;
+  return new Tree(nodes);
 }
 
 export default parser;

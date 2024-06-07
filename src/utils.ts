@@ -1,3 +1,6 @@
+import { MDNode } from "./tree";
+import { TKNRange } from "./tokens";
+
 export class Queue<T> {
   private items: T[] = [];
   private itemsCount = 0;
@@ -33,6 +36,13 @@ export function isalnum(text: string): boolean {
   return /[A-Z0-9]/i.test(text);
 }
 
-export function isPointInRange(point: number, rangeStart: number, rangeEnd: number): boolean {
-  return point >= rangeStart && point <= rangeEnd;
+export function isPointInRange(point: number, range: TKNRange): boolean {
+  return point >= range[0] && point <= range[1];
+}
+
+// TODO: this should be in the BlockNode Class maybe?
+export function appendNodesToEl(el: HTMLElement, nodes: MDNode[]): void {
+  for(const node of nodes) {
+    el.appendChild(node.getHTMLEl());
+  }
 }
