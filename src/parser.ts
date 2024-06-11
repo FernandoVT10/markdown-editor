@@ -1,4 +1,14 @@
-import Tree, { MDNode, Text, Paragraph, Italic, NewLine } from "./tree";
+import Tree, {
+  MDNode,
+  Text,
+  Paragraph,
+  Italic,
+  NewLine,
+  Bold,
+  Code,
+  Header,
+  Link
+} from "./tree";
 import { Types, Token, BlockTokens } from "./tokens";
 import Lexer from "./lexer";
 
@@ -31,7 +41,10 @@ function parseTokens(tokens: Token[]): MDNode[] {
         resNodes.push(new Text(token.text, token.range));
         break;
       case Types.Italic:
-        resNodes.push(new Italic(token.range, nodes));
+        resNodes.push(new Italic(token, nodes));
+        break;
+      case Types.Bold:
+        resNodes.push(new Bold(token, nodes));
         break;
       case Types.NewLine: {
         const nextToken = tokens[i + 1];
@@ -40,6 +53,15 @@ function parseTokens(tokens: Token[]): MDNode[] {
           resNodes.push(new NewLine(token.range));
         }
       } break;
+      case Types.Code:
+        resNodes.push(new Code(token));
+        break;
+      case Types.Header:
+        resNodes.push(new Header(token, nodes));
+        break;
+      case Types.Link:
+        resNodes.push(new Link(token));
+        break;
       default:
         throw new Error(`Error: ${Types[token.type]} is not a valid token`);
     }

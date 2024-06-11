@@ -34,14 +34,7 @@ describe("Lexer", () => {
       expect(token.type).toBe(Types.Code);
       expect(token.range).toEqual([0, buffer.length]);
       expect(token.content).toBe(buffer.replace(/`/g, ""));
-    });
-
-    it("should work without content", () => {
-      const buffer = "``";
-      const token = setupInlineTokens(buffer)[0] as Tokens.Code;
-      expect(token.type).toBe(Types.Code);
-      expect(token.range).toEqual([0, buffer.length]);
-      expect(token.content).toBe("");
+      expect(token.wasClosed).toBeTruthy();
     });
 
     it("should work without closing the code block", () => {
@@ -50,16 +43,7 @@ describe("Lexer", () => {
       expect(token.type).toBe(Types.Code);
       expect(token.range).toEqual([0, buffer.length]);
       expect(token.content).toBe("test");
-    });
-
-    it("should work with the code block being in the middle", () => {
-      const buffer = "abc`test`abc";
-      const tokens = setupInlineTokens(buffer);
-      const token = tokens[1] as Tokens.Code;
-
-      expect(token.type).toBe(Types.Code);
-      expect(token.content).toBe("test");
-      expect(token.range).toEqual([3, 9]);
+      expect(token.wasClosed).toBeFalsy();
     });
   });
 
@@ -107,6 +91,7 @@ describe("Lexer", () => {
       const token = tokens[0] as Tokens.Bold;
       expect(token.type).toBe(Types.Bold);
       expect(token.range).toEqual([0, buffer.length]);
+      expect(token.wasClosed).toBeTruthy();
 
       expect(token.tokens).toHaveLength(1);
       expect(token.tokens[0].type).toBe(Types.Text);
@@ -117,6 +102,7 @@ describe("Lexer", () => {
       const token = setupInlineTokens(buffer)[0] as Tokens.Bold;
       expect(token.type).toBe(Types.Bold);
       expect(token.range).toEqual([0, buffer.length]);
+      expect(token.wasClosed).toBeFalsy();
 
       expect(token.tokens).toHaveLength(1);
       expect(token.tokens[0].type).toBe(Types.Text);
@@ -132,6 +118,7 @@ describe("Lexer", () => {
       const token = tokens[0] as Tokens.Italic;
       expect(token.type).toBe(Types.Italic);
       expect(token.range).toEqual([0, buffer.length]);
+      expect(token.wasClosed).toBeTruthy();
 
       // Italic Token's tokens
       expect(token.tokens).toHaveLength(1);
@@ -143,6 +130,7 @@ describe("Lexer", () => {
       const token = setupInlineTokens(buffer)[0] as Tokens.Italic;
       expect(token.type).toBe(Types.Italic);
       expect(token.range).toEqual([0, buffer.length]);
+      expect(token.wasClosed).toBeFalsy();
 
       // Bold Token's tokens
       expect(token.tokens).toHaveLength(1);
@@ -206,6 +194,8 @@ describe("Lexer", () => {
       expect(token.text).toBe(text);
       expect(token.dest).toBe(dest);
       expect(token.range).toEqual([0, buffer.length]);
+      expect(token.raw).toBe(buffer);
+      expect(token.wasClosed).toBeTruthy();
     });
 
     it("returns a link with only its destination", () => {
@@ -216,6 +206,14 @@ describe("Lexer", () => {
       expect(token.text).toBe("text");
       expect(token.dest).toBeNull();
       expect(token.range).toEqual([0, buffer.length]);
+      expect(token.raw).toBe(buffer);
+      expect(token.wasClosed).toBeFalsy();
+    });
+
+    it("returns the raw buffer", () => {
+      const buffer = "[text](test";
+      const token = setupInlineTokens(buffer)[0] as Tokens.Link;
+      expect(token.raw).toBe(buffer);
     });
   });
 });

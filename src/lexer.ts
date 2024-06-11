@@ -21,7 +21,7 @@ export default class Lexer {
   }
 
   private peekChar(offset = 0): string {
-    if(this.isBufferEnd()) return "\0";
+    if(this.bufferCursor + offset >= this.buffer.length) return "\0";
     return this.buffer.charAt(this.bufferCursor + offset);
   }
 
@@ -42,16 +42,22 @@ export default class Lexer {
       content += c;
     }
 
+    const wasClosed = c === "`";
+
     tokens.push({
       type: Types.Code,
       range: [startPos, this.bufferCursor],
       content,
+      wasClosed,
     });
   }
 
   private processBold(startPos: number, tokens: Token[]): void {
+    let wasClosed = false;
     const inlineTokens = this.inlineTokens((c, nextC) => {
-      return !(c === "*" && nextC === "*");
+      const isBold = c === "*" && nextC === "*";
+      if(isBold) wasClosed = true;
+      return !isBold;
     });
 
     // skip the last "*" since inlineTokens only consumes the first one
@@ -61,18 +67,23 @@ export default class Lexer {
       type: Types.Bold,
       range: [startPos, this.bufferCursor],
       tokens: inlineTokens,
+      wasClosed,
     });
   }
 
   private processItalic(startPos: number, tokens: Token[]): void {
+    let wasClosed = false;
     const inlineTokens = this.inlineTokens(c => {
-      return c !== "*";
+      const isItalic = c === "*";
+      if(isItalic) wasClosed = true;
+      return !isItalic;
     });
 
     tokens.push({
       type: Types.Italic,
       range: [startPos, this.bufferCursor],
       tokens: inlineTokens,
+      wasClosed,
     });
   }
 
@@ -91,7 +102,7 @@ export default class Lexer {
     }
   }
 
-  private processHeader(startPos: number, tokens: Token[]): void {
+  private processHeader(startPos: number, tokens: Token[]): boolean {
     let level = 0;
 
     while(this.peekChar(level) === "#") {
@@ -110,7 +121,11 @@ export default class Lexer {
         tokens: inlineTokens,
         level: level + 1,
       });
+
+      return true;
     }
+
+    return false;
   }
 
   private processParagraph(startPos: number, tokens: Token[]): void {
@@ -125,18 +140,26 @@ export default class Lexer {
   }
 
   private processLink(startPos: number, tokens: Token[]): void {
-    let text = "";
-    let c;
+    let text = "", c = "", raw = "[", dest = "";
+    let wasClosed = false;
 
     while(!this.isBufferEnd() && (c = this.advanceWithChar()) !== "]") {
       text += c;
+      raw += c;
     }
 
-    let dest = "";
+    if(c === "]") raw += "]";
 
     if(this.advanceIfMatch("(")) {
+      raw += "(";
       while(!this.isBufferEnd() && (c = this.advanceWithChar()) !== ")") {
         dest += c;
+        raw += c;
+      }
+
+      if(c === ")") {
+        raw += ")";
+        wasClosed = true;
       }
     }
 
@@ -145,6 +168,8 @@ export default class Lexer {
       range: [startPos, this.bufferCursor],
       text,
       dest: dest.length > 0 ? dest : null,
+      raw,
+      wasClosed,
     });
   }
 
@@ -189,16 +214,17 @@ export default class Lexer {
       const c = this.advanceWithChar();
 
       switch(c) {
-        case "#":
-          this.processHeader(startPos, tokens);
+        case "#": 
+          if(!this.processHeader(startPos, tokens)) {
+            this.processParagraph(startPos, tokens);
+          }
           break;
         case "\n":
           tokens.push({
             type: Types.NewLine,
             range: [startPos, startPos + 1],
           });
-          // TODO: add the new line token
-          continue;
+          break;
         default: this.processParagraph(startPos, tokens);
       }
     }

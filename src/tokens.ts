@@ -22,18 +22,21 @@ export namespace Tokens {
     type: Types.Bold;
     range: TKNRange;
     tokens: Token[];
+    wasClosed: boolean;
   }
 
   export interface Italic {
     type: Types.Italic;
     range: TKNRange;
     tokens: Token[];
+    wasClosed: boolean;
   }
 
   export interface Code {
     type: Types.Code;
     range: TKNRange;
     content: string;
+    wasClosed: boolean;
   }
 
   export interface Header {
@@ -59,6 +62,8 @@ export namespace Tokens {
     range: TKNRange;
     text: string;
     dest: string | null;
+    raw: string;
+    wasClosed: boolean;
   }
 }
 
