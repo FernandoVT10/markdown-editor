@@ -94,11 +94,11 @@ abstract class MDExBlockNode extends MDBlockNode {
   updateCursor(cursorPos: number): void {
     if(isPointInRange(cursorPos, this.getRange())) {
       this.activateEditMode();
-      this.updateNodesCursor(cursorPos);
     } else {
-      this.updateNodesCursor(cursorPos);
       this.deactivateEditMode();
     }
+
+    this.updateNodesCursor(cursorPos);
   }
 }
 
@@ -309,7 +309,10 @@ export class MDImage extends MDNode {
     this.wasClosed = token.wasClosed;
 
     if(this.wasClosed) {
-      this.htmlEl.appendChild(this.imgEl);
+      const div = document.createElement("div");
+      div.appendChild(this.imgEl);
+;
+      this.htmlEl.appendChild(div);
     } else {
       this.htmlEl.appendChild(this.rawImageNode.getHTMLEl());
       this.editing = true;

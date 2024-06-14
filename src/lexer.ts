@@ -241,6 +241,8 @@ export default class Lexer {
         case "!":
           if(this.advanceIfMatch("[")) {
             this.processImage(startPos, tokens);
+          } else {
+            this.processText(c, startPos, tokens);
           }
           break;
         default:
