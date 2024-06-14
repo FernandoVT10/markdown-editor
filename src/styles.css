@@ -31,3 +31,7 @@ code {
 strong, i {
   color: var(--strong-text);
 }
+
+img {
+  width: 100%;
+}

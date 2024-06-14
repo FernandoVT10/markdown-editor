@@ -111,7 +111,7 @@ class Editor {
           console.log("Current content:", this.content.replace("\n", "\\n"));
           return;
         } else if(e.key === "f") {
-          this.updateContent("**Hello**\nWorld\n!\n# Yeah!");
+          this.updateContent("**Hello**\nWorld\n![Image](https://images7.alphacoders.com/130/thumb-1920-1300165.jpg)\n# Yeah!");
           return;
         }
       }

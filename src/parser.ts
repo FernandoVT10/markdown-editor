@@ -7,7 +7,8 @@ import Tree, {
   Bold,
   Code,
   Header,
-  Link
+  Link,
+  MDImage
 } from "./tree";
 import { Types, Token, BlockTokens } from "./tokens";
 import Lexer from "./lexer";
@@ -61,6 +62,9 @@ function parseTokens(tokens: Token[]): MDNode[] {
         break;
       case Types.Link:
         resNodes.push(new Link(token));
+        break;
+      case Types.Image:
+        resNodes.push(new MDImage(token));
         break;
       default:
         throw new Error(`Error: ${Types[token.type]} is not a valid token`);

@@ -226,4 +226,33 @@ describe("Lexer", () => {
       expect(token.raw).toBe(buffer);
     });
   });
+
+  describe("Image", () => {
+    it("returns an image", () => {
+      const altText = "alt";
+      const url = "https://a/image.jpg";
+      const buffer = `![${altText}](${url})`;
+
+      const token = setupInlineTokens(buffer)[0] as Tokens.Image;
+      expect(token.type).toBe(Types.Image);
+      expect(token.range).toEqual([0, buffer.length]);
+      expect(token.altText).toBe(altText);
+      expect(token.url).toBe(url);
+      expect(token.raw).toBe(buffer);
+      expect(token.wasClosed).toBeTruthy();
+    });
+
+    it("returns an image with only its alt text", () => {
+      const altText = "alt";
+      const buffer = `![${altText}]`;
+
+      const token = setupInlineTokens(buffer)[0] as Tokens.Image;
+      expect(token.type).toBe(Types.Image);
+      expect(token.range).toEqual([0, buffer.length]);
+      expect(token.altText).toBe(altText);
+      expect(token.url).toBeNull();
+      expect(token.raw).toBe(buffer);
+      expect(token.wasClosed).toBeFalsy();
+    });
+  });
 });

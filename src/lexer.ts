@@ -178,6 +178,42 @@ export default class Lexer {
     });
   }
 
+  private processImage(startPos: number, tokens: Token[]): void {
+    let altText = "", c = "", url = "";
+    let raw = "!["
+    let wasClosed = false;
+
+    while(!this.isBufferEnd() && (c = this.advanceWithChar()) !== "]") {
+      altText += c;
+      raw += c;
+    }
+
+    if(c === "]") raw += c;
+
+    if(this.advanceIfMatch("(")) {
+      raw += "(";
+
+      while(!this.isBufferEnd() && (c = this.advanceWithChar()) !== ")") {
+        url += c;
+        raw += c;
+      }
+
+      if(c === ")") {
+        wasClosed = true;
+        raw += c;
+      }
+    }
+
+    tokens.push({
+      type: Types.Image,
+      range: [startPos, this.bufferCursor],
+      altText,
+      url: url.length > 0 ? url : null,
+      raw,
+      wasClosed,
+    });
+  }
+
   private inlineTokens(predicate?: (c: string, nextC: string) => boolean): Token[] {
     const tokens: Token[] = [];
 
@@ -201,6 +237,11 @@ export default class Lexer {
           break;
         case "[":
           this.processLink(startPos, tokens);
+          break;
+        case "!":
+          if(this.advanceIfMatch("[")) {
+            this.processImage(startPos, tokens);
+          }
           break;
         default:
           this.processText(c, startPos, tokens);

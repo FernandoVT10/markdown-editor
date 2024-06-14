@@ -290,6 +290,56 @@ export class Link extends MDNode {
   }
 }
 
+export class MDImage extends MDNode {
+  private rawImageNode: Text;
+  private imgEl: HTMLImageElement;
+  private wasClosed: boolean;
+
+  private editing = false;
+
+  constructor(token: Tokens.Image) {
+    super(token.range, "span");
+
+    this.imgEl = document.createElement("img");
+
+    this.imgEl.alt = token.altText;
+    if(token.url) this.imgEl.src = token.url;
+
+    this.rawImageNode = new Text(token.raw, this.range);
+    this.wasClosed = token.wasClosed;
+
+    if(this.wasClosed) {
+      this.htmlEl.appendChild(this.imgEl);
+    } else {
+      this.htmlEl.appendChild(this.rawImageNode.getHTMLEl());
+      this.editing = true;
+    }
+  }
+
+  private activateEditMode(): void {
+    if(this.editing) return;
+    this.editing = true;
+
+    this.htmlEl.prepend(this.rawImageNode.getHTMLEl());
+  }
+
+  private deactivateEditMode(): void {
+    if(!this.editing || !this.wasClosed) return;
+    this.editing = false;
+
+    this.htmlEl.removeChild(this.rawImageNode.getHTMLEl());
+  }
+
+  updateCursor(cursorPos: number): void {
+    if(isPointInRange(cursorPos, this.range)) {
+      this.activateEditMode();
+      this.rawImageNode.updateCursor(cursorPos);
+    } else {
+      this.deactivateEditMode();
+    }
+  }
+}
+
 export default class Tree {
   private nodes: MDNode[] = [];
 

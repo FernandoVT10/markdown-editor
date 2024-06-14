@@ -7,6 +7,7 @@ export enum Types {
   Paragraph,
   NewLine,
   Link,
+  Image,
 }
 
 export type TKNRange = [number, number];
@@ -66,6 +67,15 @@ export namespace Tokens {
     raw: string;
     wasClosed: boolean;
   }
+
+  export interface Image {
+    type: Types.Image;
+    range: TKNRange;
+    altText: string;
+    url: string | null;
+    raw: string;
+    wasClosed: boolean;
+  }
 }
 
 export type BlockTokens = (
@@ -83,4 +93,5 @@ export type Token = (
   | Tokens.Header
   | Tokens.Paragraph
   | Tokens.NewLine
-  | Tokens.Link);
+  | Tokens.Link
+  | Tokens.Image);
