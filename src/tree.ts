@@ -54,7 +54,6 @@ abstract class MDBlockNode extends MDNode {
   }
 
   updateCursor(cursorPos: number): void {
-    if(!isPointInRange(cursorPos, this.getRange())) return;
     this.updateNodesCursor(cursorPos);
   }
 }
@@ -97,6 +96,7 @@ abstract class MDExBlockNode extends MDBlockNode {
       this.activateEditMode();
       this.updateNodesCursor(cursorPos);
     } else {
+      this.updateNodesCursor(cursorPos);
       this.deactivateEditMode();
     }
   }
@@ -226,8 +226,15 @@ export class Header extends MDExBlockNode {
     super(range, nodes, tagName);
 
     const startPos = this.getStartPos();
-    const hashes = "".padStart(level, "#");
-    this.startNode = new Text(hashes, [startPos, startPos + level]);
+    let markdownMark = "".padStart(level, "#");
+    let nodeEndPos = startPos + level;
+
+    if(token.hasAfterSpace) {
+      markdownMark += " ";
+      nodeEndPos++;
+    }
+
+    this.startNode = new Text(markdownMark, [startPos, nodeEndPos]);
   }
 }
 

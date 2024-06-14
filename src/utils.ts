@@ -40,7 +40,6 @@ export function isPointInRange(point: number, range: TKNRange): boolean {
   return point >= range[0] && point <= range[1];
 }
 
-// TODO: this should be in the BlockNode Class maybe?
 export function appendNodesToEl(el: HTMLElement, nodes: MDNode[]): void {
   for(const node of nodes) {
     el.appendChild(node.getHTMLEl());

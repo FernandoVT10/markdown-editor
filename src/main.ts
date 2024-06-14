@@ -33,6 +33,7 @@ class Editor {
 
   private updateContent(newContent: string) {
     this.content = newContent;
+    Cursor.updateLines(newContent);
 
     logInfo("Starting to parse...");
     const t = Date.now();
@@ -110,29 +111,28 @@ class Editor {
           console.log("Current content:", this.content.replace("\n", "\\n"));
           return;
         } else if(e.key === "f") {
-          this.updateContent("[Hello](https://fvtblog.com)");
+          this.updateContent("**Hello**\nWorld\n!\n# Yeah!");
           return;
         }
       }
 
-      const cursorPos = Cursor.getPos();
-
       switch(e.key) {
         case "ArrowLeft":
-          if(cursorPos >= 1) {
-            Cursor.setPos(cursorPos - 1);
-          }
+          Cursor.goLeft();
           break;
         case "ArrowRight":
-          if(cursorPos < this.content.length) {
-            Cursor.setPos(cursorPos + 1);
-          }
+          Cursor.goRight();
+          break;
+        case "ArrowDown":
+          Cursor.goDown();
+          break;
+        case "ArrowUp":
+          Cursor.goUp();
           break;
         case "Backspace":
           if(e.ctrlKey) {
             this.removeSequenceOfChars();
           } else {
-
             this.removeCharacter();
           }
           break;

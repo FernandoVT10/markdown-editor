@@ -44,6 +44,7 @@ export namespace Tokens {
     range: TKNRange;
     tokens: Token[];
     level: number;
+    hasAfterSpace: boolean;
   }
 
   export interface Paragraph {

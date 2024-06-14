@@ -59,9 +59,11 @@ describe("Lexer", () => {
       expect(token.type).toBe(Types.Header);
       expect(token.range).toEqual([0, buffer.length]);
       expect(token.level).toBe(2);
+      expect(token.hasAfterSpace).toBeTruthy();
 
       expect(token.tokens).toHaveLength(1);
       expect(token.tokens[0].type).toBe(Types.Text);
+      expect(token.tokens[0].range).toEqual([3, buffer.length]);
     });
 
     it("returns a header token after a new line", () => {
@@ -79,6 +81,14 @@ describe("Lexer", () => {
       expect(tokens).toHaveLength(1)
 
       expect(tokens[0].type).not.toBe(Types.Header);
+    });
+
+    it("returns hasAfterSpace to false", () => {
+      const buffer = "#";
+      const lexer = new Lexer(buffer);
+      const token = lexer.scanTokens()[0] as Tokens.Header;
+
+      expect(token.hasAfterSpace).toBeFalsy();
     });
   });
 

@@ -1,5 +1,7 @@
 import { Token, Types } from "./tokens";
 
+const HEADER_MAX_LEVEL = 6;
+
 export default class Lexer {
   private buffer: string;
   private bufferCursor = 0;
@@ -14,6 +16,10 @@ export default class Lexer {
 
   private advance(n = 1): void {
     this.bufferCursor += n;
+  }
+
+  private rewind(): void {
+    this.bufferCursor--;
   }
 
   private advanceWithChar(): string {
@@ -102,7 +108,7 @@ export default class Lexer {
     }
   }
 
-  private processHeader(startPos: number, tokens: Token[]): boolean {
+  private processHeader(startPos: number, tokens: Token[]): void {
     let level = 0;
 
     while(this.peekChar(level) === "#") {
@@ -110,9 +116,9 @@ export default class Lexer {
     }
 
     const finalC = this.peekChar(level);
-    if(finalC === " " || finalC === "\0") {
+    if((finalC === " " || finalC === "\0") && level < HEADER_MAX_LEVEL) {
       // skip all the "#" and the space or "\0" characters
-      this.advance(level);
+      this.advance(level + 1);
       const inlineTokens = this.inlineTokens();
 
       tokens.push({
@@ -120,17 +126,16 @@ export default class Lexer {
         range: [startPos, this.bufferCursor],
         tokens: inlineTokens,
         level: level + 1,
+        hasAfterSpace: finalC === " ",
       });
-
-      return true;
+    } else {
+      // process this as text
+      this.processParagraph(startPos, tokens);
     }
-
-    return false;
   }
 
   private processParagraph(startPos: number, tokens: Token[]): void {
-    // TODO: this should create a paragraph
-    this.bufferCursor--;
+    this.rewind();
     const inlineTokens = this.inlineTokens();
     tokens.push({
       type: Types.Paragraph,
@@ -215,9 +220,7 @@ export default class Lexer {
 
       switch(c) {
         case "#": 
-          if(!this.processHeader(startPos, tokens)) {
-            this.processParagraph(startPos, tokens);
-          }
+          this.processHeader(startPos, tokens);
           break;
         case "\n":
           tokens.push({
