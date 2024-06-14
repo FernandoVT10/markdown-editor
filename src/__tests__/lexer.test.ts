@@ -45,6 +45,16 @@ describe("Lexer", () => {
       expect(token.content).toBe("test");
       expect(token.wasClosed).toBeFalsy();
     });
+
+    it("stops consuming characters after a new line if code wasn't closed", () => {
+      const code = "`test"
+      const buffer = `${code}\ntext`;
+      const token = setupInlineTokens(buffer)[0] as Tokens.Code;
+      expect(token.type).toBe(Types.Code);
+      expect(token.range).toEqual([0, code.length]);
+      expect(token.content).toBe("test");
+      expect(token.wasClosed).toBeFalsy();
+    });
   });
 
   describe("Header", () => {

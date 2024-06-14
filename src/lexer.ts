@@ -44,7 +44,7 @@ export default class Lexer {
   private processCode(startPos: number, tokens: Token[]): void {
     let content = "", c = "";
 
-    while(!this.isBufferEnd() && (c = this.advanceWithChar()) !== "`") {
+    while(!this.isBufferEnd() && !this.match("\n") && (c = this.advanceWithChar()) !== "`") {
       content += c;
     }
 
