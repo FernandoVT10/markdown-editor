@@ -40,8 +40,8 @@ export function isSpecialAction(e: KeyboardEvent): boolean {
     // Open dev console
     if(shift && key === "i") return true;
 
-    // Paste
-    if(key === "v") return true;
+    // Copy & Paste
+    if(["v", "c"].includes(key)) return true;
   }
 
   return false;

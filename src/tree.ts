@@ -31,8 +31,7 @@ export abstract class MDNode {
   }
 
   abstract updateCursor(cursorPos: number): void;
-
-  abstract updateCursorPos(selNode: Node, offset: number): boolean;
+  abstract getCursorPos(selNode: Node, offset: number): number | undefined;
 }
 
 abstract class MDBlockNode extends MDNode {
@@ -54,12 +53,11 @@ abstract class MDBlockNode extends MDNode {
     this.updateNodesCursor(cursorPos);
   }
 
-  updateCursorPos(selNode: Node, offset: number): boolean {
+  getCursorPos(selNode: Node, offset: number): number | undefined {
     for(const node of this.nodes) {
-      if(node.updateCursorPos(selNode, offset)) return true;
+      const pos = node.getCursorPos(selNode, offset);
+      if(pos !== undefined) return pos;
     }
-
-    return false;
   }
 }
 
@@ -111,8 +109,11 @@ export class Text extends MDNode {
   constructor(text: string, range: TKNRange) {
     super(range, "span");
 
-    for(const c of text) {
-      if(c === " ") {
+    for(let i = 0; i < text.length; i++) {
+      const c = text.charAt(i);
+      const nextC = text.charAt(i + 1);
+
+      if(c === " " && (nextC === " " || nextC === "")) {
         this.htmlEl.innerHTML += "&nbsp;"
       } else {
         this.htmlEl.innerText += c;
@@ -130,13 +131,10 @@ export class Text extends MDNode {
     }
   }
 
-  updateCursorPos(selNode: Node, offset: number): boolean {
+  getCursorPos(selNode: Node, offset: number): number | undefined {
     if(this.htmlEl.firstChild?.isSameNode(selNode)) {
-      Cursor.setPos(this.getStartPos() + offset);
-      return true;
+      return this.getStartPos() + offset;
     }
-
-    return false;
   }
 }
 
@@ -205,13 +203,10 @@ export class NewLine extends MDNode {
     }
   }
 
-  updateCursorPos(selNode: Node, _: number): boolean {
+  getCursorPos(selNode: Node, _: number): number | undefined {
     if(this.htmlEl.isSameNode(selNode)) {
-      Cursor.setPos(this.getEndPos());
-      return true;
+      return this.getEndPos();
     }
-
-    return false;
   }
 }
 
@@ -319,17 +314,14 @@ export class Link extends MDNode {
     }
   }
 
-  updateCursorPos(selNode: Node, offset: number): boolean {
+  getCursorPos(selNode: Node, offset: number): number | undefined {
     if(this.editing) {
-      return this.rawLinkNode.updateCursorPos(selNode, offset);
+      return this.rawLinkNode.getCursorPos(selNode, offset);
     }
 
     if(this.linkEl.firstChild?.isSameNode(selNode)) {
-      Cursor.setPos(this.getStartPos() + offset + 1);
-      return true;
+      return this.getStartPos() + offset + 1;
     }
-
-    return false;
   }
 }
 
@@ -384,17 +376,14 @@ export class MDImage extends MDNode {
     }
   }
 
-  updateCursorPos(selNode: Node, offset: number): boolean {
+  getCursorPos(selNode: Node, offset: number): number | undefined {
     if(this.imgEl.isSameNode(selNode)) {
-      Cursor.setPos(this.getEndPos());
-      return true;
+      return this.getEndPos();
     }
 
     if(this.editing) {
-      return this.rawImageNode.updateCursorPos(selNode, offset);
+      return this.rawImageNode.getCursorPos(selNode, offset);
     }
-
-    return false;
   }
 }
 
@@ -416,9 +405,11 @@ export default class Tree {
     }
   }
 
-  updateCursorPos(selNode: Node, offset: number): void {
+  getCursorPos(selNode: Node, offset: number): number | undefined {
     for(const node of this.nodes) {
-      if(node.updateCursorPos(selNode, offset)) break;
+      const pos = node.getCursorPos(selNode, offset);
+
+      if(pos !== undefined) return pos;
     }
   }
 }

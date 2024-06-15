@@ -41,6 +41,9 @@ class Editor {
 
   private addCharacter(char: string): void {
     if(char.length > 1) return;
+
+    if(!Cursor.isCollapsed()) this.removeSelection();
+
     const cursorPos = Cursor.getPos();
     const leftPart = this.content.slice(0, cursorPos);
     const rightPart = this.content.slice(cursorPos);
@@ -92,6 +95,16 @@ class Editor {
     }
   }
 
+  private removeSelection(): void {
+    const [start, end] = Cursor.getSelectionRange();
+
+    const leftPart = this.content.slice(0, start);
+    const rightPart = this.content.slice(end);
+
+    Cursor.setPos(start);
+    this.updateContent(leftPart + rightPart);
+  }
+
   private setupKeydownListener(): void {
     this.container.addEventListener("keydown", (e) => {
       if(isSpecialAction(e)) return;
@@ -99,7 +112,7 @@ class Editor {
 
       // DEBUG SHORTCUTS
       if(DEBUG && e.ctrlKey) {
-        if(e.key === "c") {
+        if(e.key === "a") {
           console.log("Current content:", this.content.replace("\n", "\\n"));
           return;
         } else if(e.key === "f") {
@@ -107,6 +120,18 @@ class Editor {
           return;
         }
       }
+
+      // COPY (ctrl + c)
+      // if(e.ctrlKey && e.key.toLowerCase() === "c") {
+      //   if(e.key.toLowerCase() === "c") {
+      //     if(!Cursor.isCollapsed()) {
+      //       const [start, end] = Cursor.getSelectionRange();
+      //       const text = this.content.slice(start, end);
+      //       navigator.clipboard.writeText(text);
+      //     }
+      //     return;
+      //   }
+      // }
 
       switch(e.key) {
         case "ArrowLeft": 
@@ -122,10 +147,14 @@ class Editor {
           Cursor.goUp();
           break;
         case "Backspace":
-          if(e.ctrlKey) {
-            this.removeSequenceOfChars();
+          if(Cursor.isCollapsed()) {
+            if(e.ctrlKey) {
+              this.removeSequenceOfChars();
+            } else {
+              this.removeCharacter();
+            }
           } else {
-            this.removeCharacter();
+            this.removeSelection();
           }
           break;
         case "Enter":
@@ -144,19 +173,49 @@ class Editor {
   private setupMouseEvents(): void {
     Cursor.addCallback(() => this.updateCursor());
 
-    this.container.addEventListener("mouseup", e => {
+    window.addEventListener("mouseup", e => {
       const selection = window.getSelection();
 
       if(!this.tree || !selection) return;
 
-      const selNode = selection.focusNode;
-      const offset = selection.focusOffset;
-      const target = e.target as HTMLElement;
+      if(selection.isCollapsed) {
+        const selNode = selection.focusNode;
+        const target = e.target as HTMLElement;
 
-      if(target.tagName === "IMG") {
-        this.tree.updateCursorPos(target, 0);
-      } else if(selNode) {
-        this.tree.updateCursorPos(selNode, offset);
+        let newCursorPos = Cursor.getPos();
+
+        if(target.tagName === "IMG") {
+          newCursorPos = this.tree.getCursorPos(target, 0) || newCursorPos;
+        } else if(selNode) {
+          const offset = selection.focusOffset;
+          newCursorPos = this.tree.getCursorPos(selNode, offset) || newCursorPos;
+        }
+
+        Cursor.setPos(newCursorPos);
+      } else {
+        const startNode = selection.anchorNode;
+        const startOffset = selection.anchorOffset;
+        const endNode = selection.focusNode;
+        const endOffset = selection.focusOffset;
+
+        let startPos: number | undefined;
+        if(startNode) {
+          startPos = this.tree.getCursorPos(startNode, startOffset);
+        }
+
+        let endPos: number | undefined;
+        if(endNode) {
+          endPos = this.tree.getCursorPos(endNode, endOffset);
+        }
+
+        if(startPos !== undefined && endPos !== undefined) {
+          // the selection in the browser can be made backwards
+          if(startPos > endPos) {
+            Cursor.setSelectionRange(endPos, startPos);
+          } else {
+            Cursor.setSelectionRange(startPos, endPos);
+          }
+        }
       }
     });
   }
@@ -171,6 +230,13 @@ class Editor {
 
       Cursor.setPos(cursorPos + pastedText.length);
       this.updateContent(leftPart + pastedText + rightPart);
+    });
+
+    this.container.addEventListener("copy", e => {
+      e.preventDefault();
+      const [start, end] = Cursor.getSelectionRange();
+      const text = this.content.slice(start, end);
+      e.clipboardData?.setData("text/plain", text);
     });
   }
 }
