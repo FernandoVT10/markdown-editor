@@ -41,14 +41,25 @@ export default class Lexer {
     return bool;
   }
 
+  private advanceInlineUntil(cond: (c: string) => boolean): void {
+    let c = "";
+    while(!this.isBufferEnd() && !this.match("\n") && cond(c = this.advanceWithChar()));
+  }
+
   private processCode(startPos: number, tokens: Token[]): void {
-    let content = "", c = "";
+    let content = "";
+    let wasClosed = false;
 
-    while(!this.isBufferEnd() && !this.match("\n") && (c = this.advanceWithChar()) !== "`") {
+    this.advanceInlineUntil(c => {
+      if(c === "`") {
+        wasClosed = true;
+        return false;
+      }
+
       content += c;
-    }
 
-    const wasClosed = c === "`";
+      return true;
+    });
 
     tokens.push({
       type: Types.Code,
@@ -145,27 +156,34 @@ export default class Lexer {
   }
 
   private processLink(startPos: number, tokens: Token[]): void {
-    let text = "", c = "", raw = "[", dest = "";
+    let text = "", raw = "[", dest = "";
     let wasClosed = false;
 
-    while(!this.isBufferEnd() && (c = this.advanceWithChar()) !== "]") {
-      text += c;
+    this.advanceInlineUntil(c => {
       raw += c;
-    }
 
-    if(c === "]") raw += "]";
+      if(c === "]") {
+        return false;
+      } else {
+        text += c;
+        return true;
+      }
+    });
 
     if(this.advanceIfMatch("(")) {
       raw += "(";
-      while(!this.isBufferEnd() && (c = this.advanceWithChar()) !== ")") {
-        dest += c;
-        raw += c;
-      }
 
-      if(c === ")") {
-        raw += ")";
-        wasClosed = true;
-      }
+      this.advanceInlineUntil(c => {
+        raw += c;
+
+        if(c === ")") {
+          wasClosed = true;
+          return false;
+        } else {
+          dest += c;
+          return true;
+        }
+      });
     }
 
     tokens.push({
@@ -179,29 +197,33 @@ export default class Lexer {
   }
 
   private processImage(startPos: number, tokens: Token[]): void {
-    let altText = "", c = "", url = "";
-    let raw = "!["
+    let altText = "", url = "", raw = "![";
     let wasClosed = false;
 
-    while(!this.isBufferEnd() && (c = this.advanceWithChar()) !== "]") {
-      altText += c;
+    this.advanceInlineUntil(c => {
       raw += c;
-    }
 
-    if(c === "]") raw += c;
+      if(c === "]") {
+        return false;
+      } else {
+        altText += c;
+        return true;
+      }
+    });
 
     if(this.advanceIfMatch("(")) {
       raw += "(";
 
-      while(!this.isBufferEnd() && (c = this.advanceWithChar()) !== ")") {
-        url += c;
+      this.advanceInlineUntil(c => {
         raw += c;
-      }
-
-      if(c === ")") {
-        wasClosed = true;
-        raw += c;
-      }
+        if(c === ")") {
+          wasClosed = true;
+          return false;
+        } else {
+          url += c;
+          return true;
+        }
+      });
     }
 
     tokens.push({

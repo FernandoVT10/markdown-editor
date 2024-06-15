@@ -235,6 +235,22 @@ describe("Lexer", () => {
       const token = setupInlineTokens(buffer)[0] as Tokens.Link;
       expect(token.raw).toBe(buffer);
     });
+
+    describe("stops consuming chars after new line if", () => {
+      it("text wasn't closed", () => {
+        const link = "[text";
+        const buffer = `${link}\ntest`;
+        const token = setupInlineTokens(buffer)[0] as Tokens.Link;
+        expect(token.range).toEqual([0, link.length]);
+      });
+
+      it("dest wasn't closed", () => {
+        const link = "[text](dest";
+        const buffer = `${link}\ntest`;
+        const token = setupInlineTokens(buffer)[0] as Tokens.Link;
+        expect(token.range).toEqual([0, link.length]);
+      });
+    });
   });
 
   describe("Image", () => {
@@ -263,6 +279,22 @@ describe("Lexer", () => {
       expect(token.url).toBeNull();
       expect(token.raw).toBe(buffer);
       expect(token.wasClosed).toBeFalsy();
+    });
+
+    describe("stops consuming chars after new line if", () => {
+      it("altText wasn't closed", () => {
+        const image = "![text";
+        const buffer = `${image}\ntest`;
+        const token = setupInlineTokens(buffer)[0] as Tokens.Link;
+        expect(token.range).toEqual([0, image.length]);
+      });
+
+      it("url wasn't closed", () => {
+        const image = "![text](image.webp";
+        const buffer = `${image}\ntest`;
+        const token = setupInlineTokens(buffer)[0] as Tokens.Link;
+        expect(token.range).toEqual([0, image.length]);
+      });
     });
   });
 });
