@@ -66,8 +66,6 @@ function parseTokens(tokens: Token[]): MDNode[] {
       case Types.Image:
         resNodes.push(new MDImage(token));
         break;
-      default:
-        throw new Error(`Error: ${Types[token.type]} is not a valid token`);
     }
   }
 

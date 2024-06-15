@@ -103,6 +103,7 @@ class Editor {
 
   private setupKeydownListener(): void {
     this.container.addEventListener("keydown", (e) => {
+      if(e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "i") return;
       e.preventDefault();
 
       // DEBUG SHORTCUTS
@@ -111,7 +112,7 @@ class Editor {
           console.log("Current content:", this.content.replace("\n", "\\n"));
           return;
         } else if(e.key === "f") {
-          this.updateContent("**Hello**\nWorld\n![Image](https://images7.alphacoders.com/130/thumb-1920-1300165.jpg)\n# Yeah!");
+          this.updateContent("**Hello**\n[World](#)\n![Image](https://images7.alphacoders.com/130/thumb-1920-1300165.jpg)\n# Yeah!");
           return;
         }
       }
@@ -151,16 +152,22 @@ class Editor {
       this.updateCursor();
     });
 
-    this.container.addEventListener("mouseup", () => {
+    this.container.addEventListener("mouseup", e => {
       const selection = window.getSelection();
 
       if(!this.tree || !selection) return;
 
-      const node = selection.focusNode;
+      const selNode = selection.focusNode;
       const offset = selection.focusOffset;
 
-      if(node) {
-        // this.tree.updateCursorPos(node, offset);
+      const target = e.target as HTMLElement;
+
+      console.log("Target:", target, "Selection:", selection);
+
+      if(target.tagName === "IMG") {
+        this.tree.updateCursorPos(target, 0);
+      } else if(selNode) {
+        this.tree.updateCursorPos(selNode, offset);
       }
     });
   }

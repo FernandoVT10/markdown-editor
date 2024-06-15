@@ -31,11 +31,8 @@ export abstract class MDNode {
   }
 
   abstract updateCursor(cursorPos: number): void;
-  // abstract updateCursorPos(node: globalThis.Node, offset: number): boolean;
-  //
-  // public printRange(spaces = 0): void {
-  //   console.log("".padStart(spaces, " "), `[${this.startPos}, ${this.endPos}]`);
-  // }
+
+  abstract updateCursorPos(selNode: Node, offset: number): boolean;
 }
 
 abstract class MDBlockNode extends MDNode {
@@ -55,6 +52,14 @@ abstract class MDBlockNode extends MDNode {
 
   updateCursor(cursorPos: number): void {
     this.updateNodesCursor(cursorPos);
+  }
+
+  updateCursorPos(selNode: Node, offset: number): boolean {
+    for(const node of this.nodes) {
+      if(node.updateCursorPos(selNode, offset)) return true;
+    }
+
+    return false;
   }
 }
 
@@ -122,6 +127,15 @@ export class Text extends MDNode {
       if(node) Cursor.setCursorAtNode(node, offset);
     }
   }
+
+  updateCursorPos(selNode: Node, offset: number): boolean {
+    if(this.htmlEl.firstChild?.isSameNode(selNode)) {
+      Cursor.setPos(this.getStartPos() + offset);
+      return true;
+    }
+
+    return false;
+  }
 }
 
 export class Paragraph extends MDBlockNode {
@@ -174,7 +188,10 @@ export class Bold extends MDExBlockNode {
 
 export class NewLine extends MDNode {
   constructor(range: TKNRange) {
-    super(range, "br");
+    super(range, "div");
+
+    const br = document.createElement("br");
+    this.htmlEl.appendChild(br);
   }
 
   updateCursor(cursorPos: number): void {
@@ -182,6 +199,15 @@ export class NewLine extends MDNode {
       const node = this.htmlEl;
       if(node) Cursor.setCursorAtNode(node, 0);
     }
+  }
+
+  updateCursorPos(selNode: Node, _: number): boolean {
+    if(this.htmlEl.isSameNode(selNode)) {
+      Cursor.setPos(this.getEndPos());
+      return true;
+    }
+
+    return false;
   }
 }
 
@@ -288,6 +314,19 @@ export class Link extends MDNode {
       this.deactivateEditMode();
     }
   }
+
+  updateCursorPos(selNode: Node, offset: number): boolean {
+    if(this.editing) {
+      return this.rawLinkNode.updateCursorPos(selNode, offset);
+    }
+
+    if(this.linkEl.firstChild?.isSameNode(selNode)) {
+      Cursor.setPos(this.getStartPos() + offset + 1);
+      return true;
+    }
+
+    return false;
+  }
 }
 
 export class MDImage extends MDNode {
@@ -311,7 +350,6 @@ export class MDImage extends MDNode {
     if(this.wasClosed) {
       const div = document.createElement("div");
       div.appendChild(this.imgEl);
-;
       this.htmlEl.appendChild(div);
     } else {
       this.htmlEl.appendChild(this.rawImageNode.getHTMLEl());
@@ -341,6 +379,19 @@ export class MDImage extends MDNode {
       this.deactivateEditMode();
     }
   }
+
+  updateCursorPos(selNode: Node, offset: number): boolean {
+    if(this.imgEl.isSameNode(selNode)) {
+      Cursor.setPos(this.getEndPos());
+      return true;
+    }
+
+    if(this.editing) {
+      return this.rawImageNode.updateCursorPos(selNode, offset);
+    }
+
+    return false;
+  }
 }
 
 export default class Tree {
@@ -358,6 +409,12 @@ export default class Tree {
   updateCursor(cursorPos: number): void {
     for(const node of this.nodes) {
       node.updateCursor(cursorPos);
+    }
+  }
+
+  updateCursorPos(selNode: Node, offset: number): void {
+    for(const node of this.nodes) {
+      if(node.updateCursorPos(selNode, offset)) break;
     }
   }
 }

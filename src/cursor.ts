@@ -108,11 +108,12 @@ class CursorClass {
     }
   }
 
-  setCursorAtNode(node: globalThis.Node, offset: number): void {
+  setCursorAtNode(node: Node, offset: number): void {
     const range = document.createRange();
     range.setStart(node, offset);
 
     const selection = window.getSelection();
+
     if(selection) {
       selection.removeAllRanges();
       selection.addRange(range);
