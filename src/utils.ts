@@ -30,3 +30,19 @@ export function scrollToEl(el: HTMLElement): void {
     window.scrollTo({ top: scrollY - offset })
   }
 }
+
+export function isSpecialAction(e: KeyboardEvent): boolean {
+  const ctrl = e.ctrlKey;
+  const shift = e.shiftKey;
+  const key = e.key.toLowerCase();
+
+  if(ctrl) {
+    // Open dev console
+    if(shift && key === "i") return true;
+
+    // Paste
+    if(key === "v") return true;
+  }
+
+  return false;
+}

@@ -1,7 +1,7 @@
 import Tree from "./tree";
 import Cursor from "./cursor";
 import parser from "./parser";
-import { isalnum } from "./utils";
+import { isalnum, isSpecialAction } from "./utils";
 import { DEBUG, logInfo } from "./debug";
 
 import "./styles.css";
@@ -15,6 +15,7 @@ class Editor {
     this.container = container;
     this.setupKeydownListener();
     this.setupMouseEvents();
+    this.setupSpecialEvents();
   }
 
   private updateCursor(): void {
@@ -93,7 +94,7 @@ class Editor {
 
   private setupKeydownListener(): void {
     this.container.addEventListener("keydown", (e) => {
-      if(e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "i") return;
+      if(isSpecialAction(e)) return;
       e.preventDefault();
 
       // DEBUG SHORTCUTS
@@ -130,6 +131,9 @@ class Editor {
         case "Enter":
           this.addCharacter("\n");
           break;
+        case "Tab":
+          this.addCharacter("\t");
+          break;
         default:
           this.addCharacter(e.key);
           break;
@@ -154,6 +158,19 @@ class Editor {
       } else if(selNode) {
         this.tree.updateCursorPos(selNode, offset);
       }
+    });
+  }
+
+  private setupSpecialEvents(): void {
+    this.container.addEventListener("paste", e => {
+      e.preventDefault();
+      const cursorPos = Cursor.getPos();
+      const pastedText = e.clipboardData?.getData("text/plain") || "";
+      const leftPart = this.content.slice(0, cursorPos);
+      const rightPart = this.content.slice(cursorPos);
+
+      Cursor.setPos(cursorPos + pastedText.length);
+      this.updateContent(leftPart + pastedText + rightPart);
     });
   }
 }
