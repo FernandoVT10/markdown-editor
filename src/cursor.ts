@@ -10,11 +10,18 @@ class CursorClass {
   private cbList: CB[]  = [];
   private lines: Range[] = [];
   private maxPos = 0;
+  private lineOffset = 0;
 
   private getColumn(): number {
     let column = 0;
     while(this.cursorPos > this.lines[column].end && column < this.lines.length - 1) column++;
     return column;
+  }
+
+  private callCallbacks(): void {
+    for(const cb of this.cbList) {
+      cb();
+    }
   }
 
   onUpdate(cb: CB): void {
@@ -52,9 +59,12 @@ class CursorClass {
   setPos(cursorPos: number): void {
     this.cursorPos = cursorPos;
 
-    for(const cb of this.cbList) {
-      cb();
+    if(this.lines.length) {
+      const column = this.getColumn();
+      this.lineOffset = this.cursorPos - this.lines[column].start;
     }
+
+    this.callCallbacks();
   }
 
   goRight(): void {
@@ -73,19 +83,18 @@ class CursorClass {
     const column = this.getColumn();
 
     if(column + 1 < this.lines.length) {
-      let columnOffset = this.cursorPos - this.lines[column].start;
-
       // the columnOffset at the first column has a min value of 0
       // meanwhile all the other columns have 1 as its min value
       // here we correct the first column to avoid errors
       if(column === 0) {
-        columnOffset++;
+        this.lineOffset++;
       }
 
       const nextColumn = this.lines[column + 1];
-      const newPos = nextColumn.start + columnOffset;
+      const newPos = nextColumn.start + this.lineOffset;
 
-      this.setPos(Math.min(newPos, nextColumn.end));
+      this.cursorPos = Math.min(newPos, nextColumn.end);
+      this.callCallbacks();
     }
   }
 
@@ -93,18 +102,17 @@ class CursorClass {
     const column = this.getColumn();
 
     if(column - 1 >= 0) {
-      let columnOffset = this.cursorPos - this.lines[column].start;
-
       // here the columnOffset is greater by 1 in all the columns
       // except the first one, with this is solved
       if(column === 1) {
-        columnOffset--;
+        this.lineOffset--;
       }
 
       const prevColumn = this.lines[column - 1];
-      const newPos = prevColumn.start + columnOffset;
+      const newPos = prevColumn.start + this.lineOffset;
 
-      this.setPos(Math.min(newPos, prevColumn.end));
+      this.cursorPos = Math.min(newPos, prevColumn.end);
+      this.callCallbacks();
     }
   }
 
