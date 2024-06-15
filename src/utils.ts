@@ -45,3 +45,19 @@ export function appendNodesToEl(el: HTMLElement, nodes: MDNode[]): void {
     el.appendChild(node.getHTMLEl());
   }
 }
+
+export function scrollToEl(el: HTMLElement): void {
+  const scrollY = window.scrollY;
+  const elTop = el.offsetTop;
+
+  const windowBot = scrollY + window.innerHeight;
+  const elBot = elTop + el.offsetHeight;
+
+  if(windowBot < elBot) {
+    const offset = elBot - windowBot;
+    window.scrollTo({ top: scrollY + offset })
+  } else if(scrollY > elTop) {
+    const offset = scrollY - elTop;
+    window.scrollTo({ top: scrollY - offset })
+  }
+}

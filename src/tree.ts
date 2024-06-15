@@ -1,5 +1,5 @@
 import { TKNRange, Tokens } from "./tokens";
-import { isPointInRange, appendNodesToEl } from "./utils";
+import { isPointInRange, appendNodesToEl, scrollToEl } from "./utils";
 
 import Cursor from "./cursor";
 
@@ -125,6 +125,8 @@ export class Text extends MDNode {
       const offset = cursorPos - this.getStartPos();
       const node = this.htmlEl.firstChild;
       if(node) Cursor.setCursorAtNode(node, offset);
+
+      scrollToEl(this.htmlEl);
     }
   }
 
@@ -198,6 +200,8 @@ export class NewLine extends MDNode {
     if(cursorPos === this.getEndPos()) {
       const node = this.htmlEl;
       if(node) Cursor.setCursorAtNode(node, 0);
+
+      scrollToEl(this.htmlEl);
     }
   }
 
