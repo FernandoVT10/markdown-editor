@@ -11,19 +11,9 @@ import Tree, {
   MDImage
 } from "./tree";
 import { Types, Token, BlockTokens } from "./tokens";
+import { DEBUG, printTokens } from "./debug";
+
 import Lexer from "./lexer";
-
-function printTokens(tokens: Token[], depth = 0): void {
-  const spaces = "".padStart(depth * 2, " ");
-  for(const token of tokens) {
-    const { type, range } = token;
-    console.log(`${spaces}${Types[type]}: [${range[0]}, ${range[1]}]`);
-
-    if(Array.isArray((token as any).tokens)) {
-      printTokens((token as any).tokens, depth + 2);
-    }
-  }
-}
 
 function parseTokens(tokens: Token[]): MDNode[] {
   const resNodes = [];
@@ -74,11 +64,13 @@ function parseTokens(tokens: Token[]): MDNode[] {
 
 function parser(content: string): Tree {
   const lexer = new Lexer(content);
-
   const tokens = lexer.scanTokens();
-  printTokens(tokens);
-  const nodes = parseTokens(tokens);
 
+  if(DEBUG) {
+    printTokens(tokens);
+  }
+
+  const nodes = parseTokens(tokens);
   return new Tree(nodes);
 }
 

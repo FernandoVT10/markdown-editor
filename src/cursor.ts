@@ -24,7 +24,7 @@ class CursorClass {
     }
   }
 
-  onUpdate(cb: CB): void {
+  addCallback(cb: CB): void {
     this.cbList.push(cb);
   }
 

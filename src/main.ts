@@ -2,15 +2,9 @@ import Tree from "./tree";
 import Cursor from "./cursor";
 import parser from "./parser";
 import { isalnum } from "./utils";
+import { DEBUG, logInfo } from "./debug";
 
 import "./styles.css";
-
-const DEBUG = true;
-
-function logInfo(text: string) {
-  const style = "color: #79aaeb;font-weight: bold;";
-  console.log("%c" + text, style);
-}
 
 class Editor {
   private container: HTMLDivElement;
@@ -19,16 +13,12 @@ class Editor {
 
   constructor(container: HTMLDivElement) {
     this.container = container;
-
     this.setupKeydownListener();
-
     this.setupMouseEvents();
   }
 
   private updateCursor(): void {
-    if(!this.tree) return;
-
-    this.tree.updateCursor(Cursor.getPos());
+    if(this.tree) this.tree.updateCursor(Cursor.getPos());
   }
 
   private updateContent(newContent: string) {
@@ -118,7 +108,7 @@ class Editor {
       }
 
       switch(e.key) {
-        case "ArrowLeft":
+        case "ArrowLeft": 
           Cursor.goLeft();
           break;
         case "ArrowRight":
@@ -148,9 +138,7 @@ class Editor {
   }
 
   private setupMouseEvents(): void {
-    Cursor.onUpdate(() => {
-      this.updateCursor();
-    });
+    Cursor.addCallback(() => this.updateCursor());
 
     this.container.addEventListener("mouseup", e => {
       const selection = window.getSelection();
@@ -159,10 +147,7 @@ class Editor {
 
       const selNode = selection.focusNode;
       const offset = selection.focusOffset;
-
       const target = e.target as HTMLElement;
-
-      console.log("Target:", target, "Selection:", selection);
 
       if(target.tagName === "IMG") {
         this.tree.updateCursorPos(target, 0);
