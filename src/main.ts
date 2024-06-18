@@ -10,6 +10,7 @@ class Editor {
   private container: HTMLDivElement;
   private tree: Tree | undefined;
   private content = "";
+  private wasCursorCollapsed = true;
 
   constructor(container: HTMLDivElement) {
     this.container = container;
@@ -158,10 +159,21 @@ class Editor {
     });
   }
 
+  private updateCursorPos(selection: Selection): void {
+    const selNode = selection.focusNode;
+
+    if(!selNode || !this.tree) return;
+
+    let newCursorPos = Cursor.getPos();
+    const offset = selection.focusOffset;
+    newCursorPos = this.tree.getCursorPos(selNode, offset) || newCursorPos;
+    Cursor.setPos(newCursorPos);
+  }
+
   private setupMouseEvents(): void {
     Cursor.addCallback(() => this.updateCursor());
 
-    window.addEventListener("click", e => {
+    window.addEventListener("mouseup", e => {
       const selection = window.getSelection();
 
       if(!this.tree || !selection) return;
@@ -169,18 +181,13 @@ class Editor {
       let newCursorPos = Cursor.getPos();
 
       const target = e.target as HTMLElement;
-      if(target.tagName === "IMG" && target.parentNode) {
-        newCursorPos = this.tree.getCursorPos(target.parentNode, 0) || newCursorPos;
-        Cursor.setPos(newCursorPos);
-      } else if(selection.isCollapsed) {
-        const selNode = selection.focusNode;
-
-        if(selNode) {
-          const offset = selection.focusOffset;
-          newCursorPos = this.tree.getCursorPos(selNode, offset) || newCursorPos;
+      if(selection.isCollapsed) {
+        if(target.tagName === "IMG" && target.parentNode) {
+          newCursorPos = this.tree.getCursorPos(target.parentNode, 0) || newCursorPos;
+          Cursor.setPos(newCursorPos);
+        } else {
+          this.updateCursorPos(selection);
         }
-
-        Cursor.setPos(newCursorPos);
       }
     });
   }
@@ -211,7 +218,15 @@ class Editor {
 
       if(!this.tree || !selection) return;
 
-      if(!selection.isCollapsed) {
+      if(selection.isCollapsed && !this.wasCursorCollapsed) {
+        // When clicking above selected text, the event "mouseup" is called and its callback makes use of "isCollapsed" from the window selection
+        // It seems that the selection is not updated before "mouseup" is fired, making "isCollapsed" false.
+        // This code calls the function when "isCollapsed" changes from false to true.
+        this.wasCursorCollapsed = true;
+        this.updateCursorPos(selection);
+      } else if(!selection.isCollapsed) {
+        this.wasCursorCollapsed = false;
+
         const startNode = selection.anchorNode;
         const startOffset = selection.anchorOffset;
         const endNode = selection.focusNode;
