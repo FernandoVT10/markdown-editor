@@ -30,7 +30,7 @@ export abstract class MDNode {
     return this.htmlEl;
   }
 
-  abstract updateCursor(cursorPos: number): void;
+  abstract onCursorUpdate(): void;
   abstract getCursorPos(selNode: Node, offset: number): number | undefined;
 }
 
@@ -43,14 +43,14 @@ abstract class MDBlockNode extends MDNode {
     appendNodesToEl(this.htmlEl, this.nodes);
   }
 
-  protected updateNodesCursor(cursorPos: number): void {
+  protected updateNodesCursor(): void {
     for(const node of this.nodes) {
-      node.updateCursor(cursorPos);
+      node.onCursorUpdate();
     }
   }
 
-  updateCursor(cursorPos: number): void {
-    this.updateNodesCursor(cursorPos);
+  onCursorUpdate(): void {
+    this.updateNodesCursor();
   }
 
   getCursorPos(selNode: Node, offset: number): number | undefined {
@@ -94,14 +94,14 @@ abstract class MDExBlockNode extends MDBlockNode {
     }
   }
 
-  updateCursor(cursorPos: number): void {
-    if(isPointInRange(cursorPos, this.getRange())) {
+  onCursorUpdate(): void {
+    if(Cursor.collidesWithRange(this.getRange())) {
       this.activateEditMode();
     } else {
       this.deactivateEditMode();
     }
 
-    this.updateNodesCursor(cursorPos);
+    this.updateNodesCursor();
   }
 }
 
@@ -121,9 +121,9 @@ export class Text extends MDNode {
     }
   }
 
-  updateCursor(cursorPos: number): void {
-    if(isPointInRange(cursorPos, this.getRange())) {
-      const offset = cursorPos - this.getStartPos();
+  onCursorUpdate(): void {
+    if(Cursor.isCollapsed() && Cursor.collidesWithRange(this.getRange())) {
+      const offset = Cursor.getPos() - this.getStartPos();
       const node = this.htmlEl.firstChild;
       if(node) Cursor.setCursorAtNode(node, offset);
 
@@ -194,8 +194,8 @@ export class NewLine extends MDNode {
     this.htmlEl.appendChild(br);
   }
 
-  updateCursor(cursorPos: number): void {
-    if(cursorPos === this.getEndPos()) {
+  onCursorUpdate(): void {
+    if(Cursor.isCollapsed() && Cursor.getPos() === this.getEndPos()) {
       const node = this.htmlEl;
       if(node) Cursor.setCursorAtNode(node, 0);
 
@@ -305,10 +305,10 @@ export class Link extends MDNode {
     this.htmlEl.appendChild(this.linkEl);
   }
 
-  updateCursor(cursorPos: number): void {
-    if(isPointInRange(cursorPos, this.range)) {
+  onCursorUpdate(): void {
+    if(Cursor.collidesWithRange(this.getRange())) {
       this.activateEditMode();
-      this.rawLinkNode.updateCursor(cursorPos);
+      this.rawLinkNode.onCursorUpdate();
     } else {
       this.deactivateEditMode();
     }
@@ -367,10 +367,10 @@ export class MDImage extends MDNode {
     this.htmlEl.removeChild(this.rawImageNode.getHTMLEl());
   }
 
-  updateCursor(cursorPos: number): void {
-    if(isPointInRange(cursorPos, this.range)) {
+  onCursorUpdate(): void {
+    if(Cursor.collidesWithRange(this.getRange())) {
       this.activateEditMode();
-      this.rawImageNode.updateCursor(cursorPos);
+      this.rawImageNode.onCursorUpdate();
     } else {
       this.deactivateEditMode();
     }
@@ -399,9 +399,9 @@ export default class Tree {
     appendNodesToEl(parentElement, this.nodes);
   }
 
-  updateCursor(cursorPos: number): void {
+  onCursorUpdate(): void {
     for(const node of this.nodes) {
-      node.updateCursor(cursorPos);
+      node.onCursorUpdate();
     }
   }
 

@@ -9,6 +9,13 @@ export function isPointInRange(point: number, range: TKNRange): boolean {
   return point >= range[0] && point <= range[1];
 }
 
+export function checkRangesCollision(rangeA: TKNRange, rangeB: TKNRange): boolean {
+  return (rangeA[0] >= rangeB[0] && rangeA[0] <= rangeB[1])
+    || (rangeA[1] >= rangeB[0] && rangeA[1] <= rangeB[1])
+    || (rangeB[0] >= rangeA[0] && rangeB[0] <= rangeA[1])
+    || (rangeB[1] >= rangeA[0] && rangeB[1] <= rangeA[1]);
+}
+
 export function appendNodesToEl(el: HTMLElement, nodes: MDNode[]): void {
   for(const node of nodes) {
     el.appendChild(node.getHTMLEl());

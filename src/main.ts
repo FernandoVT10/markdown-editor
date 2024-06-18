@@ -19,7 +19,7 @@ class Editor {
   }
 
   private updateCursor(): void {
-    if(this.tree) this.tree.updateCursor(Cursor.getPos());
+    if(this.tree) this.tree.onCursorUpdate();
   }
 
   private updateContent(newContent: string) {
@@ -120,18 +120,6 @@ class Editor {
           return;
         }
       }
-
-      // COPY (ctrl + c)
-      // if(e.ctrlKey && e.key.toLowerCase() === "c") {
-      //   if(e.key.toLowerCase() === "c") {
-      //     if(!Cursor.isCollapsed()) {
-      //       const [start, end] = Cursor.getSelectionRange();
-      //       const text = this.content.slice(start, end);
-      //       navigator.clipboard.writeText(text);
-      //     }
-      //     return;
-      //   }
-      // }
 
       switch(e.key) {
         case "ArrowLeft": 
@@ -234,9 +222,11 @@ class Editor {
 
     this.container.addEventListener("copy", e => {
       e.preventDefault();
-      const [start, end] = Cursor.getSelectionRange();
-      const text = this.content.slice(start, end);
-      e.clipboardData?.setData("text/plain", text);
+      if(!Cursor.isCollapsed()) {
+        const [start, end] = Cursor.getSelectionRange();
+        const text = this.content.slice(start, end);
+        e.clipboardData?.setData("text/plain", text);
+      }
     });
   }
 }

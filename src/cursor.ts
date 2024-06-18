@@ -1,8 +1,9 @@
 import { TKNRange } from "./tokens";
+import { isPointInRange, checkRangesCollision } from "./utils";
 
 type CB = () => void;
 
-type Range = {
+type LineRange = {
   start: number;
   end: number;
 };
@@ -10,7 +11,7 @@ type Range = {
 class CursorClass {
   private cursorPos = 0;
   private cbList: CB[]  = [];
-  private lines: Range[] = [];
+  private lines: LineRange[] = [];
   private maxPos = 0;
   private lineOffset = 0;
 
@@ -141,6 +142,7 @@ class CursorClass {
   setSelectionRange(start: number, end: number): void {
     this.collapsed = false;
     this.selectionRange = [start, end];
+    this.callCallbacks();
   }
 
   isCollapsed(): boolean {
@@ -162,6 +164,14 @@ class CursorClass {
       selection.addRange(range);
       selection.collapseToEnd();
     }
+  }
+
+  collidesWithRange(range: TKNRange): boolean {
+    if(this.isCollapsed()) {
+      return isPointInRange(this.cursorPos, range);
+    }
+
+    return checkRangesCollision(this.selectionRange, range);
   }
 }
 
