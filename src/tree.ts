@@ -1,4 +1,4 @@
-import { TKNRange, Tokens } from "./tokens";
+import { MDRange, Tokens } from "./tokens";
 import { appendNodesToEl, scrollToEl } from "./utils";
 
 import Cursor from "./cursor";
@@ -6,15 +6,15 @@ import Cursor from "./cursor";
 type TagName = keyof HTMLElementTagNameMap;
 
 export abstract class MDNode {
-  protected range: TKNRange;
+  protected range: MDRange;
   protected htmlEl: HTMLElement;
 
-  constructor(range: TKNRange, tagName: TagName) {
+  constructor(range: MDRange, tagName: TagName) {
     this.range = range;
     this.htmlEl = document.createElement(tagName);
   }
 
-  protected getRange(): TKNRange {
+  protected getRange(): MDRange {
     return this.range;
   }
 
@@ -37,7 +37,7 @@ export abstract class MDNode {
 abstract class MDBlockNode extends MDNode {
   protected nodes: MDNode[];
 
-  constructor(range: TKNRange, nodes: MDNode[], tagName: TagName) {
+  constructor(range: MDRange, nodes: MDNode[], tagName: TagName) {
     super(range, tagName);
     this.nodes = nodes;
     appendNodesToEl(this.htmlEl, this.nodes);
@@ -106,7 +106,7 @@ abstract class MDExBlockNode extends MDBlockNode {
 }
 
 export class Text extends MDNode {
-  constructor(text: string, range: TKNRange) {
+  constructor(text: string, range: MDRange) {
     super(range, "span");
 
     for(let i = 0; i < text.length; i++) {
@@ -139,7 +139,7 @@ export class Text extends MDNode {
 }
 
 export class Paragraph extends MDBlockNode {
-  constructor(range: TKNRange, nodes: MDNode[]) {
+  constructor(range: MDRange, nodes: MDNode[]) {
     super(range, nodes, "p");
   }
 }
@@ -187,7 +187,7 @@ export class Bold extends MDExBlockNode {
 }
 
 export class NewLine extends MDNode {
-  constructor(range: TKNRange) {
+  constructor(range: MDRange) {
     super(range, "div");
 
     const br = document.createElement("br");

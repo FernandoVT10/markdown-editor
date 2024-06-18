@@ -10,39 +10,39 @@ export enum Types {
   Image,
 }
 
-export type TKNRange = [number, number];
+export type MDRange = [number, number];
 
 export namespace Tokens {
   export interface Text {
     type: Types.Text;
-    range: TKNRange;
+    range: MDRange;
     text: string;
   }
 
   export interface Bold {
     type: Types.Bold;
-    range: TKNRange;
+    range: MDRange;
     tokens: Token[];
     wasClosed: boolean;
   }
 
   export interface Italic {
     type: Types.Italic;
-    range: TKNRange;
+    range: MDRange;
     tokens: Token[];
     wasClosed: boolean;
   }
 
   export interface Code {
     type: Types.Code;
-    range: TKNRange;
+    range: MDRange;
     content: string;
     wasClosed: boolean;
   }
 
   export interface Header {
     type: Types.Header;
-    range: TKNRange;
+    range: MDRange;
     tokens: Token[];
     level: number;
     hasAfterSpace: boolean;
@@ -50,18 +50,18 @@ export namespace Tokens {
 
   export interface Paragraph {
     type: Types.Paragraph;
-    range: TKNRange;
+    range: MDRange;
     tokens: Token[];
   }
 
   export interface NewLine {
     type: Types.NewLine;
-    range: TKNRange;
+    range: MDRange;
   }
 
   export interface Link {
     type: Types.Link;
-    range: TKNRange;
+    range: MDRange;
     text: string;
     dest: string | null;
     raw: string;
@@ -70,7 +70,7 @@ export namespace Tokens {
 
   export interface Image {
     type: Types.Image;
-    range: TKNRange;
+    range: MDRange;
     altText: string;
     url: string | null;
     raw: string;

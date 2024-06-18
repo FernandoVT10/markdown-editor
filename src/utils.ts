@@ -1,15 +1,15 @@
 import { MDNode } from "./tree";
-import { TKNRange } from "./tokens";
+import { MDRange } from "./tokens";
 
 export function isalnum(text: string): boolean {
   return /[A-Z0-9]/i.test(text);
 }
 
-export function isPointInRange(point: number, range: TKNRange): boolean {
+export function isPointInRange(point: number, range: MDRange): boolean {
   return point >= range[0] && point <= range[1];
 }
 
-export function checkRangesCollision(rangeA: TKNRange, rangeB: TKNRange): boolean {
+export function checkRangesCollision(rangeA: MDRange, rangeB: MDRange): boolean {
   return (rangeA[0] >= rangeB[0] && rangeA[0] <= rangeB[1])
     || (rangeA[1] >= rangeB[0] && rangeA[1] <= rangeB[1])
     || (rangeB[0] >= rangeA[0] && rangeB[0] <= rangeA[1])

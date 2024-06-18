@@ -1,4 +1,4 @@
-import { TKNRange } from "./tokens";
+import { MDRange } from "./tokens";
 import { isPointInRange, checkRangesCollision } from "./utils";
 
 type CB = () => void;
@@ -16,7 +16,7 @@ class CursorClass {
   private lineOffset = 0;
 
   private collapsed = true;
-  private selectionRange: TKNRange = [0, 0];
+  private selectionRange: MDRange = [0, 0];
 
   private getColumn(): number {
     let column = 0;
@@ -149,7 +149,7 @@ class CursorClass {
     return this.collapsed;
   }
 
-  getSelectionRange(): TKNRange {
+  getSelectionRange(): MDRange {
     return this.selectionRange;
   }
 
@@ -166,7 +166,7 @@ class CursorClass {
     }
   }
 
-  collidesWithRange(range: TKNRange): boolean {
+  collidesWithRange(range: MDRange): boolean {
     if(this.isCollapsed()) {
       return isPointInRange(this.cursorPos, range);
     }
