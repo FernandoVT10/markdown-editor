@@ -161,26 +161,57 @@ class Editor {
   private setupMouseEvents(): void {
     Cursor.addCallback(() => this.updateCursor());
 
-    window.addEventListener("mouseup", e => {
+    window.addEventListener("click", e => {
       const selection = window.getSelection();
 
       if(!this.tree || !selection) return;
 
-      if(selection.isCollapsed) {
+      let newCursorPos = Cursor.getPos();
+
+      const target = e.target as HTMLElement;
+      if(target.tagName === "IMG" && target.parentNode) {
+        newCursorPos = this.tree.getCursorPos(target.parentNode, 0) || newCursorPos;
+        Cursor.setPos(newCursorPos);
+      } else if(selection.isCollapsed) {
         const selNode = selection.focusNode;
-        const target = e.target as HTMLElement;
 
-        let newCursorPos = Cursor.getPos();
-
-        if(target.tagName === "IMG") {
-          newCursorPos = this.tree.getCursorPos(target, 0) || newCursorPos;
-        } else if(selNode) {
+        if(selNode) {
           const offset = selection.focusOffset;
           newCursorPos = this.tree.getCursorPos(selNode, offset) || newCursorPos;
         }
 
         Cursor.setPos(newCursorPos);
-      } else {
+      }
+    });
+  }
+
+  private setupSpecialEvents(): void {
+    this.container.addEventListener("paste", e => {
+      e.preventDefault();
+      const cursorPos = Cursor.getPos();
+      const pastedText = e.clipboardData?.getData("text/plain") || "";
+      const leftPart = this.content.slice(0, cursorPos);
+      const rightPart = this.content.slice(cursorPos);
+
+      Cursor.setPos(cursorPos + pastedText.length);
+      this.updateContent(leftPart + pastedText + rightPart);
+    });
+
+    this.container.addEventListener("copy", e => {
+      e.preventDefault();
+      if(!Cursor.isCollapsed()) {
+        const [start, end] = Cursor.getSelectionRange();
+        const text = this.content.slice(start, end);
+        e.clipboardData?.setData("text/plain", text);
+      }
+    });
+
+    document.addEventListener("selectionchange", () => {
+      const selection = window.getSelection();
+
+      if(!this.tree || !selection) return;
+
+      if(!selection.isCollapsed) {
         const startNode = selection.anchorNode;
         const startOffset = selection.anchorOffset;
         const endNode = selection.focusNode;
@@ -204,28 +235,6 @@ class Editor {
             Cursor.setSelectionRange(startPos, endPos);
           }
         }
-      }
-    });
-  }
-
-  private setupSpecialEvents(): void {
-    this.container.addEventListener("paste", e => {
-      e.preventDefault();
-      const cursorPos = Cursor.getPos();
-      const pastedText = e.clipboardData?.getData("text/plain") || "";
-      const leftPart = this.content.slice(0, cursorPos);
-      const rightPart = this.content.slice(cursorPos);
-
-      Cursor.setPos(cursorPos + pastedText.length);
-      this.updateContent(leftPart + pastedText + rightPart);
-    });
-
-    this.container.addEventListener("copy", e => {
-      e.preventDefault();
-      if(!Cursor.isCollapsed()) {
-        const [start, end] = Cursor.getSelectionRange();
-        const text = this.content.slice(start, end);
-        e.clipboardData?.setData("text/plain", text);
       }
     });
   }
