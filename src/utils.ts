@@ -23,18 +23,19 @@ export function appendNodesToEl(el: HTMLElement, nodes: MDNode[]): void {
 }
 
 export function scrollToEl(el: HTMLElement): void {
+  const margin = 10;
   const scrollY = window.scrollY;
-  const elTop = el.offsetTop;
-
   const windowBot = scrollY + window.innerHeight;
-  const elBot = elTop + el.offsetHeight;
+  const elRect = el.getBoundingClientRect();
+  const elTop = elRect.top + scrollY;
+  const elBot = elRect.bottom + scrollY;
 
   if(windowBot < elBot) {
     const offset = elBot - windowBot;
-    window.scrollTo({ top: scrollY + offset })
+    window.scrollTo({ top: scrollY + offset + margin });
   } else if(scrollY > elTop) {
     const offset = scrollY - elTop;
-    window.scrollTo({ top: scrollY - offset })
+    window.scrollTo({ top: scrollY - offset - margin });
   }
 }
 

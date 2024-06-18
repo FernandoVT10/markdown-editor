@@ -1,5 +1,5 @@
 import { TKNRange, Tokens } from "./tokens";
-import { isPointInRange, appendNodesToEl, scrollToEl } from "./utils";
+import { appendNodesToEl, scrollToEl } from "./utils";
 
 import Cursor from "./cursor";
 
