@@ -327,7 +327,7 @@ export class Link extends MDNode {
 
 export class MDImage extends MDNode {
   private rawImageNode: Text;
-  private imgEl: HTMLImageElement;
+  private imgContainer: HTMLDivElement;
   private wasClosed: boolean;
 
   private editing = false;
@@ -335,18 +335,18 @@ export class MDImage extends MDNode {
   constructor(token: Tokens.Image) {
     super(token.range, "span");
 
-    this.imgEl = document.createElement("img");
+    const imgEl = document.createElement("img");
+    imgEl.alt = token.altText;
+    if(token.url) imgEl.src = token.url;
 
-    this.imgEl.alt = token.altText;
-    if(token.url) this.imgEl.src = token.url;
+    this.imgContainer = document.createElement("div");
+    this.imgContainer.appendChild(imgEl);
 
     this.rawImageNode = new Text(token.raw, this.range);
     this.wasClosed = token.wasClosed;
 
     if(this.wasClosed) {
-      const div = document.createElement("div");
-      div.appendChild(this.imgEl);
-      this.htmlEl.appendChild(div);
+      this.htmlEl.appendChild(this.imgContainer);
     } else {
       this.htmlEl.appendChild(this.rawImageNode.getHTMLEl());
       this.editing = true;
@@ -377,7 +377,7 @@ export class MDImage extends MDNode {
   }
 
   getCursorPos(selNode: Node, offset: number): number | undefined {
-    if(this.imgEl.isSameNode(selNode)) {
+    if(this.imgContainer.isSameNode(selNode)) {
       return this.getEndPos();
     }
 
