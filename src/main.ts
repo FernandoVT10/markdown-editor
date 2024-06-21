@@ -6,11 +6,66 @@ import { DEBUG, logInfo } from "./debug";
 
 import "./styles.css";
 
+type HistoryItem = {
+  cursorPos: number;
+  buffer: string;
+}
+
+const emptyHistoryItem: HistoryItem = {
+  cursorPos: 0,
+  buffer: "",
+};
+
+class History {
+  private array: HistoryItem[] = [];
+  private cursor = 0;
+
+  save(buffer: string, cursorPos: number): void {
+    if(this.array.length && this.array[this.cursor - 1].buffer === buffer) return;
+
+    this.cursor++;
+    this.array.push({ buffer, cursorPos });
+  }
+
+  get(): HistoryItem {
+    if(this.array.length === 0 || this.cursor === 0) return emptyHistoryItem;
+    return this.array[this.cursor - 1];
+  }
+
+  hasBeenUndone(): boolean {
+    return this.cursor < this.array.length;
+  }
+
+  undo(): boolean {
+    if(this.cursor > 0) {
+      this.cursor--;
+      return true;
+    }
+    return false;
+  }
+
+  redo(): boolean {
+    if(this.cursor < this.array.length) {
+      this.cursor++;
+      return true;
+    }
+
+    return false;
+  }
+
+  clearAfterCursor(): void {
+    this.array = this.array.slice(0, this.cursor);
+  }
+}
+
 class Editor {
   private container: HTMLDivElement;
   private tree: Tree | undefined;
-  private content = "";
+  private buffer = "";
+  private bufferUpdated = false;
   private wasCursorCollapsed = true;
+
+  private history = new History;
 
   constructor(container: HTMLDivElement) {
     this.container = container;
@@ -23,21 +78,28 @@ class Editor {
     if(this.tree) this.tree.onCursorUpdate();
   }
 
-  private updateContent(newContent: string) {
-    this.content = newContent;
-    Cursor.updateLines(newContent);
-
+  private updateTree() {
     logInfo("Starting to parse...");
     const t = Date.now();
-
-    this.tree = parser(this.content);
-
+    this.tree = parser(this.buffer);
     const ms = Date.now() - t;
     logInfo(`Parsing took: ${ms}ms`);
 
     this.tree.render(this.container);
+    this.tree.onCursorUpdate();
+  }
 
-    this.updateCursor();
+  private updateBuffer(newBuffer: string, clearHistory = true) {
+    if(this.history.hasBeenUndone() && clearHistory) {
+      this.history.clearAfterCursor();
+    }
+
+    this.buffer = newBuffer;
+    Cursor.updateLines(this.buffer);
+
+    this.updateTree();
+
+    this.bufferUpdated = true;
   }
 
   private addCharacter(char: string): void {
@@ -46,52 +108,54 @@ class Editor {
     if(!Cursor.isCollapsed()) this.removeSelection();
 
     const cursorPos = Cursor.getPos();
-    const leftPart = this.content.slice(0, cursorPos);
-    const rightPart = this.content.slice(cursorPos);
+    const leftPart = this.buffer.slice(0, cursorPos);
+    const rightPart = this.buffer.slice(cursorPos);
 
     Cursor.setPos(cursorPos + 1);
 
-    this.updateContent(leftPart + char + rightPart);
+    this.updateBuffer(leftPart + char + rightPart);
   }
 
   private removeCharacter(): void {
-    const len = this.content.length;
+    const len = this.buffer.length;
     if(len > 0) {
       const cursorPos = Cursor.getPos();
 
       if(cursorPos > 0) {
-        const leftPart = this.content.slice(0, cursorPos - 1);
-        const rightPart = this.content.slice(cursorPos);
+        const leftPart = this.buffer.slice(0, cursorPos - 1);
+        const rightPart = this.buffer.slice(cursorPos);
+
+        this.saveHistory();
 
         Cursor.setPos(cursorPos - 1);
-
-        this.updateContent(leftPart + rightPart);
+        this.updateBuffer(leftPart + rightPart, false);
       }
     }
   }
 
   private removeSequenceOfChars(): void {
-    const len = this.content.length;
+    const len = this.buffer.length;
     if(len > 0) {
       const cursorPos = Cursor.getPos();
 
-      if(!isalnum(this.content.charAt(cursorPos - 1))) {
+      if(!isalnum(this.buffer.charAt(cursorPos - 1))) {
         return this.removeCharacter();
       }
 
       if(cursorPos > 0) {
         let count = 1;
 
-        while(isalnum(this.content.charAt(cursorPos - 1 - count)) && cursorPos - count > 0) {
+        while(isalnum(this.buffer.charAt(cursorPos - 1 - count)) && cursorPos - count > 0) {
           count++;
         }
 
-        const leftPart = this.content.slice(0, cursorPos - count);
-        const rightPart = this.content.slice(cursorPos);
+        const leftPart = this.buffer.slice(0, cursorPos - count);
+        const rightPart = this.buffer.slice(cursorPos);
+
+        this.saveHistory();
 
         Cursor.setPos(cursorPos - count);
-
-        this.updateContent(leftPart + rightPart);
+        this.updateBuffer(leftPart + rightPart, false);
       }
     }
   }
@@ -99,11 +163,19 @@ class Editor {
   private removeSelection(): void {
     const [start, end] = Cursor.getSelectionRange();
 
-    const leftPart = this.content.slice(0, start);
-    const rightPart = this.content.slice(end);
+    const leftPart = this.buffer.slice(0, start);
+    const rightPart = this.buffer.slice(end);
+
+    this.saveHistory();
 
     Cursor.setPos(start);
-    this.updateContent(leftPart + rightPart);
+    this.updateBuffer(leftPart + rightPart);
+  }
+
+  private saveHistory(): void {
+    if(this.buffer.length) {
+      this.history.save(this.buffer, Cursor.getPos());
+    }
   }
 
   private setupKeydownListener(): void {
@@ -114,12 +186,49 @@ class Editor {
       // DEBUG SHORTCUTS
       if(DEBUG && e.ctrlKey) {
         if(e.key === "a") {
-          console.log("Current content:", this.content.replace("\n", "\\n"));
+          let text: string[] = [""];
+
+          for(const c of this.buffer) {
+            const i = text.length - 1;
+            if(c === "\n") {
+              text.push("\n");
+            } else {
+              text[i] += c;
+            }
+          }
+
+          console.table(text);
           return;
         } else if(e.key === "f") {
-          this.updateContent("**Hello**\n[World](#)\n![Image](https://images7.alphacoders.com/130/thumb-1920-1300165.jpg)\n# Yeah!");
+          this.updateBuffer("**Hello**\n[World](#)\n![Image](https://images7.alphacoders.com/130/thumb-1920-1300165.jpg)\n# Yeah!");
           return;
         }
+      }
+
+      if(e.ctrlKey && e.key.toLowerCase() === "z") {
+        if(e.shiftKey) {
+          // redo
+          if(this.history.redo()) {
+            const { buffer, cursorPos} = this.history.get();
+            this.buffer = buffer;
+            Cursor.setPos(cursorPos);
+          }
+        } else {
+          // undo
+          if(this.bufferUpdated) {
+            this.bufferUpdated = false;
+            this.saveHistory();
+          }
+
+          if(this.history.undo()) {
+            const { buffer, cursorPos} = this.history.get();
+            this.buffer = buffer;
+            Cursor.setPos(cursorPos);
+          }
+        }
+
+        this.updateTree();
+        return;
       }
 
       switch(e.key) {
@@ -147,6 +256,7 @@ class Editor {
           }
           break;
         case "Enter":
+          this.saveHistory();
           this.addCharacter("\n");
           break;
         case "Tab":
@@ -197,18 +307,20 @@ class Editor {
       e.preventDefault();
       const cursorPos = Cursor.getPos();
       const pastedText = e.clipboardData?.getData("text/plain") || "";
-      const leftPart = this.content.slice(0, cursorPos);
-      const rightPart = this.content.slice(cursorPos);
+      const leftPart = this.buffer.slice(0, cursorPos);
+      const rightPart = this.buffer.slice(cursorPos);
+
+      this.saveHistory();
 
       Cursor.setPos(cursorPos + pastedText.length);
-      this.updateContent(leftPart + pastedText + rightPart);
+      this.updateBuffer(leftPart + pastedText + rightPart);
     });
 
     this.container.addEventListener("copy", e => {
       e.preventDefault();
       if(!Cursor.isCollapsed()) {
         const [start, end] = Cursor.getSelectionRange();
-        const text = this.content.slice(start, end);
+        const text = this.buffer.slice(start, end);
         e.clipboardData?.setData("text/plain", text);
       }
     });
