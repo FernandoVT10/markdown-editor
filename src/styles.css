@@ -35,3 +35,16 @@ strong, i {
 img {
   width: 100%;
 }
+
+.cursor-pos {
+  padding: 10px 20px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-weight: bold;
+  background: rgba(121, 170, 235, .4);
+}
+
+.cursor-pos .number {
+  color: #79aaeb;
+}

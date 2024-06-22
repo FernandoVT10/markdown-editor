@@ -4,6 +4,8 @@ import parser from "./parser";
 import { isalnum, isSpecialAction } from "./utils";
 import { DEBUG, logInfo } from "./debug";
 
+import NewEditor from "./editor";
+
 import "./styles.css";
 
 type HistoryItem = {
@@ -371,5 +373,5 @@ const editorContainer = document.getElementById("editor") as HTMLDivElement;
 
 editorContainer.focus();
 
-const editor = new Editor(editorContainer);
+const editor = new NewEditor(editorContainer);
 (window as any).editor = editor;
