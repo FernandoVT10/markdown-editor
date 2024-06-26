@@ -1,5 +1,5 @@
 import Editor from "../editor";
-import Cursor from "../cursor-new";
+import Cursor from "../cursor";
 
 describe("Cursor", () => {
   let cursor: Cursor;

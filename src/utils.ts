@@ -54,3 +54,17 @@ export function isSpecialAction(e: KeyboardEvent): boolean {
 
   return false;
 }
+
+
+export function setSelectionAtNode(node: Node, offset: number): void {
+  const range = document.createRange();
+  range.setStart(node, offset);
+
+  const selection = window.getSelection();
+
+  if(selection) {
+    selection.removeAllRanges();
+    selection.addRange(range);
+    selection.collapseToEnd();
+  }
+}

@@ -1,179 +1,94 @@
-import { MDRange } from "./tokens";
-import { isPointInRange, checkRangesCollision } from "./utils";
+import Editor from "./editor";
 
-type CB = () => void;
+export default class Cursor {
+  private editor: Editor;
+  private prevPosX = 0;
+  private pos = {
+    x: 0,
+    y: 0,
+  };
 
-type LineRange = {
-  start: number;
-  end: number;
-};
-
-class CursorClass {
-  private cursorPos = 0;
-  private cbList: CB[]  = [];
-  private lines: LineRange[] = [];
-  private maxPos = 0;
-  private lineOffset = 0;
-
-  private collapsed = true;
-  private selectionRange: MDRange = [0, 0];
-
-  private getColumn(): number {
-    let column = 0;
-    while(this.cursorPos > this.lines[column].end && column < this.lines.length - 1) column++;
-    return column;
+  constructor(editor: Editor) {
+    this.editor = editor;
   }
 
-  private callCallbacks(): void {
-    for(const cb of this.cbList) {
-      cb();
-    }
+  private getLineLen(line: number): number {
+    const text = this.editor.buffer[line];
+    let len = text.length;
+    if(text.charAt(len - 1) === "\n") len--;
+    return len;
   }
 
-  addCallback(cb: CB): void {
-    this.cbList.push(cb);
+  public getPos(): { x: number, y: number } {
+    return this.pos;
+  }
+  
+  public getPosX(): number {
+    return this.pos.x;
+  }
+  
+  public getPosY(): number {
+    return this.pos.y;
   }
 
-  updateLines(text: string): void {
-    this.maxPos = text.length;
-
-    this.lines = [{
-      start: 0,
-      end: 0,
-    }];
-
-    let count = 0;
-
-    for(const c of text) {
-      if(c === "\n") {
-        this.lines.push({
-          start: count,
-          end: count + 1,
-        });
-      } else {
-        this.lines[this.lines.length - 1].end++;
-      }
-
-      count++;
-    }
+  public setPos(x: number, y: number): void {
+    this.prevPosX = x;
+    this.pos.x = x;
+    this.pos.y = y;
   }
 
-  getPos(): number {
-    return this.cursorPos;
+  public setPosX(x: number): void {
+    this.pos.x = x;
+    this.prevPosX = x;
   }
 
-  setPos(cursorPos: number): void {
-    this.collapsed = true;
-    this.cursorPos = cursorPos;
-
-    if(this.lines.length) {
-      const column = this.getColumn();
-      this.lineOffset = this.cursorPos - this.lines[column].start;
-    }
-
-    this.callCallbacks();
+  public setPosY(y: number): void {
+    this.pos.y = y;
   }
 
-  goRight(): void {
-    if(this.isCollapsed()) {
-      if(this.cursorPos < this.maxPos) {
-        this.setPos(this.cursorPos + 1);
-      }
+  public goLeft(): void {
+    if(this.pos.x > 0) {
+      this.pos.x--;
     } else {
-      this.setPos(this.selectionRange[1]);
-    }
-  }
-
-  goLeft(): void {
-    if(this.isCollapsed()) {
-      if(this.cursorPos > 0) {
-        this.setPos(this.cursorPos - 1);
+      if(this.pos.y > 0) {
+        this.pos.y--;
+        this.pos.x = this.getLineLen(this.pos.y);
       }
-    } else {
-      this.setPos(this.selectionRange[0]);
     }
+
+    this.prevPosX = this.pos.x;
   }
 
-  goDown(): void {
-    if(this.isCollapsed()) {
-      const column = this.getColumn();
-
-      if(column + 1 < this.lines.length) {
-        // the columnOffset at the first column has a min value of 0
-        // meanwhile all the other columns have 1 as its min value
-        // here we correct the first column to avoid errors
-        if(column === 0) {
-          this.lineOffset++;
-        }
-
-        const nextColumn = this.lines[column + 1];
-        const newPos = nextColumn.start + this.lineOffset;
-
-        this.cursorPos = Math.min(newPos, nextColumn.end);
-        this.callCallbacks();
+  public goRight(): void {
+    if(this.pos.x < this.getLineLen(this.pos.y)) {
+      this.pos.x++;
+    } else {
+      const bufLen = this.editor.buffer.length;
+      if(this.pos.y < bufLen - 1) {
+        this.pos.y++;
+        this.pos.x = 0;
       }
-    } else {
-      this.setPos(this.selectionRange[1]);
+    }
+
+    this.prevPosX = this.pos.x;
+  }
+
+  public goDown(): void {
+    const bufLen = this.editor.buffer.length;
+    if(this.pos.y < bufLen - 1) {
+      this.pos.y++;
+
+      const lineLen = this.getLineLen(this.pos.y);
+      this.pos.x = Math.min(this.prevPosX, lineLen);
     }
   }
 
-  goUp(): void {
-    if(this.isCollapsed()) {
-      const column = this.getColumn();
+  public goUp(): void {
+    if(this.pos.y > 0) {
+      this.pos.y--;
 
-      if(column - 1 >= 0) {
-        // here the columnOffset is greater by 1 in all the columns
-        // except the first one, with this is solved
-        if(column === 1) {
-          this.lineOffset--;
-        }
-
-        const prevColumn = this.lines[column - 1];
-        const newPos = prevColumn.start + this.lineOffset;
-
-        this.cursorPos = Math.min(newPos, prevColumn.end);
-        this.callCallbacks();
-      }
-    } else {
-      this.setPos(this.selectionRange[0]);
+      const lineLen = this.getLineLen(this.pos.y);
+      this.pos.x = Math.min(this.prevPosX, lineLen);
     }
-  }
-
-  setSelectionRange(start: number, end: number): void {
-    this.collapsed = false;
-    this.selectionRange = [start, end];
-    this.callCallbacks();
-  }
-
-  isCollapsed(): boolean {
-    return this.collapsed;
-  }
-
-  getSelectionRange(): MDRange {
-    return this.selectionRange;
-  }
-
-  setCursorAtNode(node: Node, offset: number): void {
-    const range = document.createRange();
-    range.setStart(node, offset);
-
-    const selection = window.getSelection();
-
-    if(selection) {
-      selection.removeAllRanges();
-      selection.addRange(range);
-      selection.collapseToEnd();
-    }
-  }
-
-  collidesWithRange(range: MDRange): boolean {
-    if(this.isCollapsed()) {
-      return isPointInRange(this.cursorPos, range);
-    }
-
-    return checkRangesCollision(this.selectionRange, range);
   }
 }
-
-const Cursor = new CursorClass();
-export default Cursor;

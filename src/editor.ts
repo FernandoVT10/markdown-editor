@@ -1,82 +1,59 @@
-import Cursor from "./cursor-new";
+import Cursor from "./cursor";
+import Tree from "./tree";
 
+import { parseLine } from "./parser";
 import { isalnum } from "./utils";
-
-class BufferPreviewer {
-  private container: HTMLElement;
-
-  private divList: HTMLDivElement[] = [];
-
-  constructor(container: HTMLElement) {
-    this.container = container;
-  }
-
-  addLine(line: number) {
-    if(!this.divList[line]) {
-      const div = document.createElement("div");
-      this.divList.splice(line, 0, div);
-
-      if(this.divList[line + 1]) {
-        this.container.insertBefore(this.divList[line + 1], this.divList[line]);
-      } else {
-        this.container.appendChild(this.divList[line]);
-      }
-    }
-  }
-
-  removeLine(line: number) {
-    this.container.removeChild(this.divList[line]);
-    this.divList.splice(line, 1);
-  }
-  
-  updateLine(line: number, text: string) {
-    if(!this.divList[line]) this.addLine(line);
-
-    if(text.length) {
-      this.divList[line].innerText = text;
-    } else {
-      this.divList[line].innerText = "\n";
-    }
-  }
-}
 
 export default class Editor {
   public buffer: string[] = [];
   public cursor: Cursor;
   private container: HTMLElement;
-
-  private bufferPreviewer?: BufferPreviewer;
+  private nodesTree: Tree;
 
   constructor(container: HTMLElement) {
     this.container = container;
     this.cursor = new Cursor(this);
+    this.nodesTree = new Tree(this.container);
 
     this.setupKeyboard();
 
     if(process.env.NODE_ENV !== "test") {
-      this.bufferPreviewer = new BufferPreviewer(container);
       this.setupDebug();
     }
   }
 
   private addLine(line: number, text: string): void {
-    this.buffer.splice(line, 0, "");
-    this.updateLine(line, text);
-    this.bufferPreviewer?.addLine(line);
-    this.bufferPreviewer?.updateLine(line, text);
+    this.buffer.splice(line, 0, text);
+
+    if(text.length) {
+      const blockNode = parseLine(line, text);
+      this.nodesTree.addLine(line, blockNode);
+    } else {
+      this.nodesTree.addLine(line);
+    }
   }
 
   private updateLine(line: number, text: string): void {
     this.buffer[line] = text;
-    this.bufferPreviewer?.updateLine(line, text);
-    console.table(this.buffer);
+
+    if(text.length) {
+      const blockNode = parseLine(line, text);
+      this.nodesTree.updateLine(line, blockNode);
+    } else {
+      this.nodesTree.updateLine(line);
+    }
   }
 
   private removeLine(line: number): void {
     if(line > 0 && line < this.buffer.length) {
       this.buffer.splice(line, 1);
-      this.bufferPreviewer?.removeLine(line);
+      this.nodesTree.removeLine(line);
     }
+  }
+
+  private updateTreeCursor(): void {
+    // TODO: make this better
+    if(process.env.NODE_ENV !== "test") this.nodesTree.onCursorUpdate(this.cursor);
   }
 
   private addChar(char: string): void {
@@ -95,6 +72,8 @@ export default class Editor {
     const leftPart = bufLine.slice(0, column);
     const rightPart = bufLine.slice(column);
 
+    console.time("Parsing took");
+
     if(char === "\n") {
       this.cursor.setPos(0, this.cursor.getPosY() + 1);
       this.updateLine(line, leftPart + char);
@@ -104,6 +83,9 @@ export default class Editor {
       const text = leftPart + char + rightPart;
       this.updateLine(line, text);
     }
+
+    this.updateTreeCursor();
+    console.timeEnd("Parsing took");
   }
 
   private removeChar(): void {
@@ -138,6 +120,8 @@ export default class Editor {
       this.removeLine(line);
       this.updateLine(prevLine, prevBufLine);
     }
+
+    this.updateTreeCursor();
   }
 
   private removeCharSequence() {
@@ -158,6 +142,8 @@ export default class Editor {
     } else {
       this.removeChar();
     }
+
+    this.updateTreeCursor();
   }
 
   private setupKeyboard(): void {
@@ -166,20 +152,30 @@ export default class Editor {
 
       if(e.ctrlKey && e.key === "a") {
         console.table(this.buffer);
+        console.log(this.nodesTree);
+        return;
+      } else if(e.ctrlKey && e.key === "i") {
+        const text = prompt("Enter text") || "";
+        this.updateLine(0, text);
+        return;
       }
 
       switch(e.key) {
         case "ArrowLeft": 
           this.cursor.goLeft();
+          this.updateTreeCursor();
           break;
         case "ArrowRight":
           this.cursor.goRight();
+          this.updateTreeCursor();
           break;
         case "ArrowDown":
           this.cursor.goDown();
+          this.updateTreeCursor();
           break;
         case "ArrowUp":
           this.cursor.goUp();
+          this.updateTreeCursor();
           break;
         case "Backspace":
           // TODO: should remove the selection if there's one
