@@ -16,10 +16,7 @@ export default class Editor {
     this.nodesTree = new Tree(this.container);
 
     this.setupKeyboard();
-
-    if(process.env.NODE_ENV !== "test") {
-      this.setupDebug();
-    }
+    this.setupDebug();
   }
 
   private addLine(line: number, text: string): void {
@@ -72,8 +69,6 @@ export default class Editor {
     const leftPart = bufLine.slice(0, column);
     const rightPart = bufLine.slice(column);
 
-    console.time("Parsing took");
-
     if(char === "\n") {
       this.cursor.setPos(0, this.cursor.getPosY() + 1);
       this.updateLine(line, leftPart + char);
@@ -85,7 +80,6 @@ export default class Editor {
     }
 
     this.updateTreeCursor();
-    console.timeEnd("Parsing took");
   }
 
   private removeChar(): void {
@@ -199,6 +193,8 @@ export default class Editor {
   }
 
   private setupDebug() {
+    if(process.env.NODE_ENV === "test") return;
+
     const cursorPosX = document.getElementById("cursor-pos-x") as HTMLElement;
     const cursorPosY = document.getElementById("cursor-pos-y") as HTMLElement;
 

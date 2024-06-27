@@ -201,8 +201,7 @@ export class NewLine extends MDBlockNode {
 
   onCursorUpdate(cursor: Cursor): void {
     if(this.isInCursorRange(cursor)) {
-      const node = this.htmlEl;
-      if(node) setSelectionAtNode(node, 0);
+      setSelectionAtNode(this.htmlEl, 0);
       scrollToEl(this.htmlEl);
     }
   }
