@@ -2,7 +2,7 @@ import Cursor from "./cursor";
 import Tree from "./tree";
 
 import { parseLine } from "./parser";
-import { isalnum } from "./utils";
+import { isalnum, isSpecialAction } from "./utils";
 
 export default class Editor {
   public buffer: string[] = [];
@@ -15,7 +15,10 @@ export default class Editor {
     this.cursor = new Cursor(this);
     this.nodesTree = new Tree(this.container);
 
+    this.buffer.push("");
+
     this.setupKeyboard();
+    this.setupClipboard();
     this.setupDebug();
   }
 
@@ -60,10 +63,6 @@ export default class Editor {
 
     const line = this.cursor.getPosY();
     const column = this.cursor.getPosX();
-
-    if(!this.buffer[line]) {
-      this.buffer[line] = "";
-    }
 
     const bufLine = this.buffer[line];
     const leftPart = bufLine.slice(0, column);
@@ -142,6 +141,7 @@ export default class Editor {
 
   private setupKeyboard(): void {
     this.container.addEventListener("keydown", (e) => {
+      if(isSpecialAction(e)) return;
       e.preventDefault();
 
       if(e.ctrlKey && e.key === "a") {
@@ -192,7 +192,49 @@ export default class Editor {
     });
   }
 
-  private setupDebug() {
+  private setupClipboard(): void {
+    this.container.addEventListener("paste", e => {
+      // TODO: this event should work with selection and it has to save history too
+      e.preventDefault();
+
+      const pastedText = e.clipboardData?.getData("text/plain");
+      if(!pastedText) return;
+
+      const posX = this.cursor.getPosX();
+      const line = this.cursor.getPosY();
+      const bufLine = this.buffer[line];
+
+      const leftPart = bufLine.slice(0, posX);
+      const rightPart = bufLine.slice(posX);
+
+      const pastedLines = pastedText.split("\n");
+      if(pastedLines.length > 1) {
+        for(let i = 0; i < pastedLines.length; i++) {
+          const text = pastedLines[i];
+          if(i === 0) {
+            this.updateLine(line + i, leftPart + text);
+          } else if(i === pastedLines.length - 1) {
+            this.addLine(line + i, text + rightPart);
+          } else {
+            this.addLine(line + i, text);
+          }
+        }
+
+        const lastIndex = pastedLines.length - 1;
+        const lastInsertedLine = line + lastIndex;
+        const newPosX = pastedLines[lastIndex].length;
+
+        this.cursor.setPos(newPosX, lastInsertedLine);
+        this.updateTreeCursor();
+      } else {
+        this.cursor.setPosX(posX + pastedText.length);
+        this.updateLine(line, leftPart + pastedText + rightPart);
+        this.updateTreeCursor();
+      }
+    });
+  }
+
+  private setupDebug(): void {
     if(process.env.NODE_ENV === "test") return;
 
     const cursorPosX = document.getElementById("cursor-pos-x") as HTMLElement;

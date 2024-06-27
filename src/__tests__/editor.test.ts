@@ -172,4 +172,63 @@ describe("Editor", () => {
     expect(editor.buffer[0]).toBe("\t");
     expectCursorPos(editor, 1, 0);
   });
+
+  describe("pasting text", () => {
+    const dispatchPaste = (text: string) => {
+      const event = new Event("paste") as any;
+      event.clipboardData = {
+        getData: () => text,
+      };
+      container.dispatchEvent(event);
+    };
+
+    it("pastes one word", () => {
+      editor.cursor.setPosX(0);
+      dispatchPaste("neovim");
+      expect(editor.buffer[0]).toBe("neovim");
+      expectCursorPos(editor, 6, 0);
+    });
+
+    it("pastes text in middle of other text", () => {
+      editor.cursor.setPosX(2);
+      editor.buffer = ["nevim"];
+
+      dispatchPaste("o");
+
+      expect(editor.buffer[0]).toBe("neovim");
+      expectCursorPos(editor, 3, 0);
+    });
+
+    it("pastes text that contains a new line", () => {
+      editor.cursor.setPosX(5);
+      editor.buffer = ["firstsecond"];
+
+      dispatchPaste("test\ntest");
+
+      expect(editor.buffer).toHaveLength(2);
+      expect(editor.buffer[0]).toBe("firsttest");
+      expect(editor.buffer[1]).toBe("testsecond");
+      expectCursorPos(editor, 4, 1);
+    });
+
+    it("pastes text with several new lines in empty buffer", () => {
+      dispatchPaste("hello\nworld\n!\n");
+
+      expect(editor.buffer).toHaveLength(4);
+      expect(editor.buffer[0]).toBe("hello");
+      expect(editor.buffer[1]).toBe("world");
+      expect(editor.buffer[2]).toBe("!");
+      expect(editor.buffer[3]).toBe("");
+      expectCursorPos(editor, 0, 3);
+    });
+
+    it("does nothing when there's no text to paste", () => {
+      editor.buffer = ["test"];
+      dispatchPaste("");
+
+      expect(editor.buffer).toHaveLength(1);
+      expect(editor.buffer[0]).toBe("test");
+      expectCursorPos(editor, 0, 0);
+    });
+  });
 });
