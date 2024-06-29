@@ -13,7 +13,6 @@ import {
 } from "./tree";
 
 import { Types, Token, BlockTokens } from "./tokens";
-import { DEBUG, printTokens } from "./debug";
 
 import Lexer from "./lexer";
 
