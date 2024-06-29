@@ -12,6 +12,7 @@ export default class Editor {
 
   private isMouseBtnPressed = false;
   private mouseStartedAtImg = false;
+  private selectionWasCollapsed = true;
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -290,7 +291,6 @@ export default class Editor {
         if(startPos.y === endPos.y) {
           const line = startPos.y;
           text = this.buffer[line].slice(startPos.x, endPos.x);
-          console.log(startPos.x, endPos.x);
         } else {
           for(let line = startPos.y; line <= endPos.y; line++) {
             const bufLine = this.buffer[line];
@@ -351,8 +351,9 @@ export default class Editor {
       const selection = window.getSelection();
       if(!selection) return;
 
-      if(selection.isCollapsed && this.isMouseBtnPressed) {
+      if(selection.isCollapsed && (this.isMouseBtnPressed || !this.selectionWasCollapsed)) {
         this.isMouseBtnPressed = false;
+        this.selectionWasCollapsed = true;
 
         const selNode = selection.focusNode;
         const offset = selection.focusOffset;
@@ -382,7 +383,7 @@ export default class Editor {
 
         if(startPos !== undefined && endPos !== undefined) {
           // the selection in the browser can be made backwards
-          if(startPos.y > endPos.y || startPos.x > endPos.x) {
+          if(startPos.y > endPos.y || (startPos.y === endPos.y && startPos.x > endPos.x)) {
             this.cursor.setSelection(endPos, startPos);
           } else {
             this.cursor.setSelection(startPos, endPos);
@@ -390,6 +391,8 @@ export default class Editor {
 
           this.updateTreeCursor();
         }
+
+        this.selectionWasCollapsed = false;
       }
     });
   }
