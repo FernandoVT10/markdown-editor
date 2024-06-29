@@ -1,21 +1,22 @@
-import Cursor from "./cursor";
+import Cursor, { CursorPos } from "./cursor";
 import { MDRange, Tokens } from "./tokens";
 import {
   appendNodesToEl,
   isPointInRange,
   scrollToEl,
   setSelectionAtNode,
+  isLineRangeInSel
 } from "./utils";
 
 type TagName = keyof HTMLElementTagNameMap;
 
 export abstract class MDNode {
-  protected line: number;
   protected range: MDRange;
   protected htmlEl: HTMLElement;
 
-  constructor(line: number, range: MDRange, tagName: TagName) {
-    this.line = line;
+  protected line = 0;
+
+  constructor(range: MDRange, tagName: TagName) {
     this.range = range;
     this.htmlEl = document.createElement(tagName);
   }
@@ -33,23 +34,37 @@ export abstract class MDNode {
   }
 
   protected isInCursorRange(cursor: Cursor): boolean {
-    const { x, y } = cursor.getPos();
-    return isPointInRange(x, this.getRange()) && this.line === y;
+    if(cursor.isCollapsed()) {
+      const { x, y } = cursor.getPos();
+      return isPointInRange(x, this.getRange()) && this.line === y;
+    } else {
+      const selection = cursor.getSelection();
+      if(selection) return isLineRangeInSel({
+        line: this.line,
+        range: this.getRange(),
+      }, selection);
+    }
+
+    return false;
   }
 
   public getHTMLEl(): HTMLElement {
     return this.htmlEl;
   }
 
+  public setLine(line: number): void {
+    this.line = line;
+  }
+
   abstract onCursorUpdate(cursor: Cursor): void;
-  // abstract getCursorPos(selNode: Node, offset: number): number | undefined;
+  abstract getCursorPos(selNode: Node, offset: number): CursorPos | undefined;
 }
 
 export abstract class MDBlockNode extends MDNode {
   protected nodes: MDNode[];
 
-  constructor(line: number, range: MDRange, nodes: MDNode[], tagName: TagName) {
-    super(line, range, tagName);
+  constructor(range: MDRange, nodes: MDNode[], tagName: TagName) {
+    super(range, tagName);
     this.nodes = nodes;
     appendNodesToEl(this.htmlEl, this.nodes);
   }
@@ -60,16 +75,24 @@ export abstract class MDBlockNode extends MDNode {
     }
   }
 
+  setLine(line: number): void {
+    this.line = line;
+
+    for(const node of this.nodes) {
+      node.setLine(line);
+    }
+  }
+
   onCursorUpdate(cursor: Cursor): void {
     this.updateNodesCursor(cursor);
   }
 
-  // getCursorPos(selNode: Node, offset: number): number | undefined {
-  //   for(const node of this.nodes) {
-  //     const pos = node.getCursorPos(selNode, offset);
-  //     if(pos !== undefined) return pos;
-  //   }
-  // }
+  getCursorPos(selNode: Node, offset: number): CursorPos | undefined {
+    for(const node of this.nodes) {
+      const pos = node.getCursorPos(selNode, offset);
+      if(pos !== undefined) return pos;
+    }
+  }
 }
 
 abstract class MDExBlockNode extends MDBlockNode {
@@ -105,6 +128,16 @@ abstract class MDExBlockNode extends MDBlockNode {
     }
   }
 
+  setLine(line: number): void {
+    this.line = line;
+    this.startNode.setLine(line);
+    this.endNode?.setLine(line);
+
+    for(const node of this.nodes) {
+      node.setLine(line);
+    }
+  }
+
   onCursorUpdate(cursor: Cursor): void {
     if(this.isInCursorRange(cursor)) {
       this.activateEditMode();
@@ -117,8 +150,8 @@ abstract class MDExBlockNode extends MDBlockNode {
 }
 
 export class Text extends MDNode {
-  constructor(line: number, text: string, range: MDRange) {
-    super(line, range, "span");
+  constructor(text: string, range: MDRange) {
+    super(range, "span");
 
     this.htmlEl.textContent = text;
   }
@@ -126,7 +159,7 @@ export class Text extends MDNode {
   onCursorUpdate(cursor: Cursor): void {
     const posX = cursor.getPosX();
 
-    if(this.isInCursorRange(cursor)) {
+    if(this.isInCursorRange(cursor) && cursor.isCollapsed()) {
       const offset = posX - this.getStartPos();
       const node = this.htmlEl.firstChild;
 
@@ -135,17 +168,20 @@ export class Text extends MDNode {
     }
   }
 
-  // getCursorPos(selNode: Node, offset: number): number | undefined {
-  //   if(this.htmlEl.firstChild?.isSameNode(selNode)) {
-  //     return this.getStartPos() + offset;
-  //   }
-  // }
+  getCursorPos(selNode: Node, offset: number): CursorPos | undefined {
+    if(this.htmlEl.firstChild?.isSameNode(selNode)) {
+      return {
+        x: this.getStartPos() + offset,
+        y: this.line,
+      };
+    }
+  }
 }
 
 
 export class Paragraph extends MDBlockNode {
-  constructor(line: number, range: MDRange, nodes: MDNode[]) {
-    super(line, range, nodes, "p");
+  constructor(range: MDRange, nodes: MDNode[]) {
+    super(range, nodes, "p");
   }
 }
 
@@ -153,17 +189,17 @@ export class Italic extends MDExBlockNode {
   protected startNode: Text;
   protected wasClosed: boolean;
 
-  constructor(line: number, token: Tokens.Italic, nodes: MDNode[]) {
-    super(line, token.range, nodes, "i");
+  constructor(token: Tokens.Italic, nodes: MDNode[]) {
+    super(token.range, nodes, "i");
 
     this.wasClosed = token.wasClosed;
 
     const startPos = this.getStartPos();
-    this.startNode = new Text(this.line, "*", [startPos, startPos + 1]);
+    this.startNode = new Text("*", [startPos, startPos + 1]);
 
     if(this.wasClosed) {
       const endPos = this.getEndPos();
-      this.endNode = new Text(this.line, "*", [endPos - 1, endPos]);
+      this.endNode = new Text("*", [endPos - 1, endPos]);
     } else {
       this.activateEditMode();
     }
@@ -174,17 +210,17 @@ export class Bold extends MDExBlockNode {
   protected startNode: Text;
   protected wasClosed: boolean;
 
-  constructor(line: number, token: Tokens.Bold, nodes: MDNode[]) {
-    super(line, token.range, nodes, "strong");
+  constructor(token: Tokens.Bold, nodes: MDNode[]) {
+    super(token.range, nodes, "strong");
 
     const startPos = this.getStartPos();
-    this.startNode = new Text(line, "**", [startPos, startPos + 2]);
+    this.startNode = new Text("**", [startPos, startPos + 2]);
 
     this.wasClosed = token.wasClosed;
 
     if(this.wasClosed) {
       const endPos = this.getEndPos();
-      this.endNode = new Text(line, "**", [endPos - 2, endPos]);
+      this.endNode = new Text("**", [endPos - 2, endPos]);
     } else {
       this.activateEditMode();
     }
@@ -192,32 +228,35 @@ export class Bold extends MDExBlockNode {
 }
 
 export class NewLine extends MDBlockNode {
-  constructor(line: number, range: MDRange) {
-    super(line, range, [], "div");
+  constructor(range: MDRange) {
+    super(range, [], "div");
 
     const br = document.createElement("br");
     this.htmlEl.appendChild(br);
   }
 
   onCursorUpdate(cursor: Cursor): void {
-    if(this.isInCursorRange(cursor)) {
+    if(this.isInCursorRange(cursor) && cursor.isCollapsed()) {
       setSelectionAtNode(this.htmlEl, 0);
       scrollToEl(this.htmlEl);
     }
   }
 
-  // getCursorPos(selNode: Node, _: number): number | undefined {
-  //   if(this.htmlEl.isSameNode(selNode)) {
-  //     return this.getEndPos();
-  //   }
-  // }
+  getCursorPos(selNode: Node, _: number): CursorPos | undefined {
+    if(this.htmlEl.isSameNode(selNode)) {
+      return {
+        x: this.getStartPos(),
+        y: this.line,
+      };
+    }
+  }
 }
 
 export class Code extends MDExBlockNode {
   protected startNode: Text;
   protected wasClosed: boolean;
 
-  constructor(line: number, token: Tokens.Code) {
+  constructor(token: Tokens.Code) {
     const { range, wasClosed, content } = token;
 
     const nodes: MDNode[] = [];
@@ -225,19 +264,19 @@ export class Code extends MDExBlockNode {
     if(content.length > 0) {
       const textStartPos = range[0] + 1;
       const textEndPos = wasClosed ? range[1] - 1 : range[1];
-      nodes.push(new Text(line, content, [textStartPos, textEndPos]));
+      nodes.push(new Text(content, [textStartPos, textEndPos]));
     }
 
-    super(line, range, nodes, "code");
+    super(range, nodes, "code");
 
     this.wasClosed = wasClosed;
 
     const startPos = this.getStartPos();
-    this.startNode = new Text(line, "`", [startPos, startPos + 1]);
+    this.startNode = new Text("`", [startPos, startPos + 1]);
 
     if(this.wasClosed) {
       const endPos = this.getEndPos();
-      this.endNode = new Text(line, "`", [endPos - 1, endPos]);
+      this.endNode = new Text("`", [endPos - 1, endPos]);
     } else {
       this.activateEditMode();
     }
@@ -248,10 +287,10 @@ export class Header extends MDExBlockNode {
   protected startNode: Text;
   protected wasClosed = true;
 
-  constructor(line: number, token: Tokens.Header, nodes: MDNode[]) {
+  constructor(token: Tokens.Header, nodes: MDNode[]) {
     const { range, level } = token;
     const tagName = `h${level}` as TagName;
-    super(line, range, nodes, tagName);
+    super(range, nodes, tagName);
 
     const startPos = this.getStartPos();
     let markdownMark = "".padStart(level, "#");
@@ -262,7 +301,7 @@ export class Header extends MDExBlockNode {
       nodeEndPos++;
     }
 
-    this.startNode = new Text(line, markdownMark, [startPos, nodeEndPos]);
+    this.startNode = new Text(markdownMark, [startPos, nodeEndPos]);
   }
 }
 
@@ -273,15 +312,15 @@ export class Link extends MDNode {
 
   private editing = false;
 
-  constructor(line: number, token: Tokens.Link) {
-    super(line, token.range, "span");
+  constructor(token: Tokens.Link) {
+    super(token.range, "span");
 
     this.linkEl = document.createElement("a");
     
     this.linkEl.innerText = token.text;
     if(token.dest) this.linkEl.href = token.dest;
 
-    this.rawLinkNode = new Text(line, token.raw, this.range);
+    this.rawLinkNode = new Text(token.raw, this.range);
     this.wasClosed = token.wasClosed;
 
     if(this.wasClosed) {
@@ -308,6 +347,11 @@ export class Link extends MDNode {
     this.htmlEl.appendChild(this.linkEl);
   }
 
+  setLine(line: number): void {
+    this.line = line;
+    this.rawLinkNode.setLine(line);
+  }
+
   onCursorUpdate(cursor: Cursor): void {
     if(this.isInCursorRange(cursor)) {
       this.activateEditMode();
@@ -317,15 +361,19 @@ export class Link extends MDNode {
     }
   }
 
-  // getCursorPos(selNode: Node, offset: number): number | undefined {
-  //   if(this.editing) {
-  //     return this.rawLinkNode.getCursorPos(selNode, offset);
-  //   }
-  //
-  //   if(this.linkEl.firstChild?.isSameNode(selNode)) {
-  //     return this.getStartPos() + offset + 1;
-  //   }
-  // }
+  getCursorPos(selNode: Node, offset: number): CursorPos | undefined {
+    if(this.editing) {
+      return this.rawLinkNode.getCursorPos(selNode, offset);
+    }
+
+    if(this.linkEl.firstChild?.isSameNode(selNode)) {
+      // here we sum one to ignore the first "["
+      return {
+        x: this.getStartPos() + offset + 1,
+        y: this.line,
+      };
+    }
+  }
 }
 
 export class MDImage extends MDNode {
@@ -335,8 +383,8 @@ export class MDImage extends MDNode {
 
   private editing = false;
 
-  constructor(line: number, token: Tokens.Image) {
-    super(line, token.range, "span");
+  constructor(token: Tokens.Image) {
+    super(token.range, "span");
 
     const imgEl = document.createElement("img");
     imgEl.alt = token.altText;
@@ -345,7 +393,7 @@ export class MDImage extends MDNode {
     this.imgContainer = document.createElement("div");
     this.imgContainer.appendChild(imgEl);
 
-    this.rawImageNode = new Text(line, token.raw, this.range);
+    this.rawImageNode = new Text(token.raw, this.range);
     this.wasClosed = token.wasClosed;
 
     if(this.wasClosed) {
@@ -370,6 +418,11 @@ export class MDImage extends MDNode {
     this.htmlEl.removeChild(this.rawImageNode.getHTMLEl());
   }
 
+  setLine(line: number): void {
+    this.line = line;
+    this.rawImageNode.setLine(line);
+  }
+
   onCursorUpdate(cursor: Cursor): void {
     if(this.isInCursorRange(cursor)) {
       this.activateEditMode();
@@ -379,15 +432,18 @@ export class MDImage extends MDNode {
     }
   }
 
-  // getCursorPos(selNode: Node, offset: number): number | undefined {
-  //   if(this.imgContainer.isSameNode(selNode)) {
-  //     return this.getEndPos();
-  //   }
-  //
-  //   if(this.editing) {
-  //     return this.rawImageNode.getCursorPos(selNode, offset);
-  //   }
-  // }
+  getCursorPos(selNode: Node, offset: number): CursorPos | undefined {
+    if(this.imgContainer.isSameNode(selNode)) {
+      return {
+        x: this.getEndPos(),
+        y: this.line,
+      };
+    }
+
+    if(this.editing) {
+      return this.rawImageNode.getCursorPos(selNode, offset);
+    }
+  }
 }
 
 export default class Tree {
@@ -398,16 +454,25 @@ export default class Tree {
     this.editorContainer = editorContainer;
   }
 
+  updateNodesLine(fromLine: number) {
+    for(let newLine = fromLine; newLine < this.nodeLines.length; newLine++) {
+      this.nodeLines[newLine].setLine(newLine);
+    }
+  }
+
   addLine(line: number, blockNode?: MDBlockNode): void {
     if(!blockNode) {
-      blockNode = new NewLine(line, [0, 0]);
+      blockNode = new NewLine([0, 0]);
     }
 
+    blockNode.setLine(line);
     this.nodeLines.splice(line, 0, blockNode);
 
     if(this.nodeLines[line + 1]) {
       const nextEl = this.nodeLines[line + 1].getHTMLEl();
       this.editorContainer.insertBefore(blockNode.getHTMLEl(), nextEl);
+
+      this.updateNodesLine(line + 1);
     } else {
       this.editorContainer.appendChild(blockNode.getHTMLEl());
     }
@@ -415,8 +480,10 @@ export default class Tree {
 
   updateLine(line: number, blockNode?: MDBlockNode): void {
     if(!blockNode) {
-      blockNode = new NewLine(line, [0, 0]);
+      blockNode = new NewLine([0, 0]);
     }
+
+    blockNode.setLine(line);
 
     if(this.nodeLines[line]) {
       const prevEl = this.nodeLines[line].getHTMLEl();
@@ -431,12 +498,20 @@ export default class Tree {
     if(line < this.nodeLines.length) {
       this.editorContainer.removeChild(this.nodeLines[line].getHTMLEl());
       this.nodeLines.splice(line, 1);
+      this.updateNodesLine(line);
     }
   }
 
   onCursorUpdate(cursor: Cursor): void {
     for(const node of this.nodeLines) {
       node.onCursorUpdate(cursor);
+    }
+  }
+
+  getCursorPos(selNode: Node, offset: number): CursorPos | undefined {
+    for(const node of this.nodeLines) {
+      const pos = node.getCursorPos(selNode, offset);
+      if(pos !== undefined) return pos;
     }
   }
 }

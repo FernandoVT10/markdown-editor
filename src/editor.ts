@@ -1,4 +1,4 @@
-import Cursor from "./cursor";
+import Cursor, { CursorPos } from "./cursor";
 import Tree from "./tree";
 
 import { parseLine } from "./parser";
@@ -10,6 +10,9 @@ export default class Editor {
   private container: HTMLElement;
   private nodesTree: Tree;
 
+  private isMouseBtnPressed = false;
+  private mouseStartedAtImg = false;
+
   constructor(container: HTMLElement) {
     this.container = container;
     this.cursor = new Cursor(this);
@@ -19,6 +22,8 @@ export default class Editor {
 
     this.setupKeyboard();
     this.setupClipboard();
+    this.setupMouse();
+    this.setupSelection();
     this.setupDebug();
   }
 
@@ -26,7 +31,7 @@ export default class Editor {
     this.buffer.splice(line, 0, text);
 
     if(text.length) {
-      const blockNode = parseLine(line, text);
+      const blockNode = parseLine(text);
       this.nodesTree.addLine(line, blockNode);
     } else {
       this.nodesTree.addLine(line);
@@ -37,7 +42,7 @@ export default class Editor {
     this.buffer[line] = text;
 
     if(text.length) {
-      const blockNode = parseLine(line, text);
+      const blockNode = parseLine(text);
       this.nodesTree.updateLine(line, blockNode);
     } else {
       this.nodesTree.updateLine(line);
@@ -59,7 +64,7 @@ export default class Editor {
   private addChar(char: string): void {
     if(char.length > 1) return;
 
-    // TODO: remove selection(if there's one) before adding character
+    if(!this.cursor.isCollapsed()) this.removeSelection();
 
     const line = this.cursor.getPosY();
     const column = this.cursor.getPosX();
@@ -82,6 +87,9 @@ export default class Editor {
   }
 
   private removeChar(): void {
+    if(!this.cursor.isCollapsed())
+      return this.removeSelection();
+
     // TODO: this function should save history
     const posX = this.cursor.getPosX();
     const posY = this.cursor.getPosY();
@@ -117,7 +125,10 @@ export default class Editor {
     this.updateTreeCursor();
   }
 
-  private removeCharSequence() {
+  private removeCharSequence(): void {
+    if(!this.cursor.isCollapsed())
+      return this.removeSelection();
+
     const column = this.cursor.getPosX();
     const line = this.cursor.getPosY();
     const bufLine = this.buffer[line];
@@ -136,6 +147,41 @@ export default class Editor {
       this.removeChar();
     }
 
+    this.updateTreeCursor();
+  }
+
+  private removeSelection(): void {
+    const selection = this.cursor.getSelection();
+
+    if(!selection) return;
+    const { startPos, endPos } = selection;
+
+    if(startPos.y === endPos.y) {
+      const line = startPos.y;
+      const bufLine = this.buffer[line];
+      const leftPart = bufLine.slice(0, startPos.x);
+      const rightPart = bufLine.slice(endPos.x);
+      this.updateLine(line, leftPart + rightPart);
+    } else {
+      // remove all lines at the middle of the selection
+      // this removes the lines from bottom to top
+      if(endPos.y > startPos.y + 1) {
+        for(let line = endPos.y - 1; line > startPos.y; line--) {
+          this.removeLine(line);
+        }
+      }
+
+      const startLine = startPos.y;
+      const endLine = startPos.y + 1;
+
+      const startBuf = this.buffer[startLine].slice(0, startPos.x);
+      const endBuf = this.buffer[endLine].slice(endPos.x);
+
+      this.updateLine(startLine, startBuf + endBuf);
+      this.removeLine(endLine);
+    }
+
+    this.cursor.setPos(startPos.x, startPos.y);
     this.updateTreeCursor();
   }
 
@@ -210,13 +256,13 @@ export default class Editor {
       const pastedLines = pastedText.split("\n");
       if(pastedLines.length > 1) {
         for(let i = 0; i < pastedLines.length; i++) {
-          const text = pastedLines[i];
+          let text = pastedLines[i];
           if(i === 0) {
-            this.updateLine(line + i, leftPart + text);
+            this.updateLine(line + i, leftPart + text + "\n");
           } else if(i === pastedLines.length - 1) {
             this.addLine(line + i, text + rightPart);
           } else {
-            this.addLine(line + i, text);
+            this.addLine(line + i, text + "\n");
           }
         }
 
@@ -230,6 +276,90 @@ export default class Editor {
         this.cursor.setPosX(posX + pastedText.length);
         this.updateLine(line, leftPart + pastedText + rightPart);
         this.updateTreeCursor();
+      }
+    });
+  }
+
+  private setupMouse(): void {
+    this.container.addEventListener("mousedown", e => {
+      this.isMouseBtnPressed = true;
+
+      const target = e.target as HTMLElement;
+      if(target.tagName.toLowerCase() === "img") {
+        this.mouseStartedAtImg = true;
+      }
+    });
+
+    this.container.addEventListener("mouseup", e => {
+      this.isMouseBtnPressed = false;
+
+      const selection = window.getSelection();
+      if(!selection) return;
+
+      const target = e.target as HTMLElement;
+
+      // This sets the cursor on the image markdown text
+      // when an image is clicked
+      if((selection.isCollapsed || this.mouseStartedAtImg)
+        && target.tagName === "IMG"
+        && target.parentNode
+      ) {
+        let newCursorPos = this.nodesTree.getCursorPos(target.parentNode, 0);
+
+        if(newCursorPos) {
+          this.cursor.setPos(newCursorPos.x, newCursorPos.y);
+          this.updateTreeCursor();
+        }
+      }
+
+      this.mouseStartedAtImg = false;
+    });
+  }
+
+  private setupSelection() {
+    document.addEventListener("selectionchange", () => {
+      const selection = window.getSelection();
+      if(!selection) return;
+
+      if(selection.isCollapsed && this.isMouseBtnPressed) {
+        this.isMouseBtnPressed = false;
+
+        const selNode = selection.focusNode;
+        const offset = selection.focusOffset;
+        if(!selNode) return;
+
+        const newPos = this.nodesTree.getCursorPos(selNode, offset);
+
+        if(newPos) {
+          this.cursor.setPos(newPos.x, newPos.y);
+          this.updateTreeCursor();
+        }
+      } else if(!selection.isCollapsed) {
+        const startNode = selection.anchorNode;
+        const startOffset = selection.anchorOffset;
+        const endNode = selection.focusNode;
+        const endOffset = selection.focusOffset;
+
+        let startPos: CursorPos | undefined;
+        if(startNode) {
+          startPos = this.nodesTree.getCursorPos(startNode, startOffset);
+        }
+
+        let endPos: CursorPos | undefined;
+        if(endNode) {
+          endPos = this.nodesTree.getCursorPos(endNode, endOffset);
+        }
+
+        if(startPos !== undefined && endPos !== undefined) {
+          // the selection in the browser can be made backwards
+          if(startPos.y > endPos.y) {
+            this.cursor.setSelection(endPos, startPos);
+          } else {
+            this.cursor.setSelection(startPos, endPos);
+          }
+
+          this.updateTreeCursor();
+        }
       }
     });
   }

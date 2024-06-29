@@ -206,7 +206,7 @@ describe("Editor", () => {
       dispatchPaste("test\ntest");
 
       expect(editor.buffer).toHaveLength(2);
-      expect(editor.buffer[0]).toBe("firsttest");
+      expect(editor.buffer[0]).toBe("firsttest\n");
       expect(editor.buffer[1]).toBe("testsecond");
       expectCursorPos(editor, 4, 1);
     });
@@ -215,9 +215,9 @@ describe("Editor", () => {
       dispatchPaste("hello\nworld\n!\n");
 
       expect(editor.buffer).toHaveLength(4);
-      expect(editor.buffer[0]).toBe("hello");
-      expect(editor.buffer[1]).toBe("world");
-      expect(editor.buffer[2]).toBe("!");
+      expect(editor.buffer[0]).toBe("hello\n");
+      expect(editor.buffer[1]).toBe("world\n");
+      expect(editor.buffer[2]).toBe("!\n");
       expect(editor.buffer[3]).toBe("");
       expectCursorPos(editor, 0, 3);
     });
@@ -229,6 +229,47 @@ describe("Editor", () => {
       expect(editor.buffer).toHaveLength(1);
       expect(editor.buffer[0]).toBe("test");
       expectCursorPos(editor, 0, 0);
+    });
+  });
+
+  describe("removing selection", () => {
+    it("removes one line selection", () => {
+      editor.buffer[0] = "hello";
+
+      editor.cursor.setSelection(
+        { x: 1, y: 0 },
+        { x: 4, y: 0 },
+      );
+      dispatchKeydown({ key: "Backspace" });
+      expect(editor.buffer[0]).toBe("ho");
+    });
+
+    it("removes two lines selection", () => {
+      editor.buffer[0] = "hello";
+      editor.buffer[1] = "hello";
+
+      editor.cursor.setSelection(
+        { x: 1, y: 0 },
+        { x: 1, y: 1 },
+      );
+      dispatchKeydown({ key: "Backspace" });
+      expect(editor.buffer).toHaveLength(1);
+      expect(editor.buffer[0]).toBe("hello");
+    });
+
+    it("removes 4 lines selection", () => {
+      editor.buffer[0] = "soul";
+      editor.buffer[1] = "of";
+      editor.buffer[2] = "cinder";
+      editor.buffer[3] = "!";
+
+      editor.cursor.setSelection(
+        { x: 2, y: 0 },
+        { x: 0, y: 3 },
+      );
+      dispatchKeydown({ key: "Backspace" });
+      expect(editor.buffer).toHaveLength(1);
+      expect(editor.buffer[0]).toBe("so!");
     });
   });
 });

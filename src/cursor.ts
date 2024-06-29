@@ -1,5 +1,15 @@
 import Editor from "./editor";
 
+export type CursorPos = {
+  x: number;
+  y: number;
+}
+
+export type CursorSelection = {
+  startPos: CursorPos;
+  endPos: CursorPos;
+}
+
 export default class Cursor {
   private editor: Editor;
   private prevPosX = 0;
@@ -7,6 +17,8 @@ export default class Cursor {
     x: 0,
     y: 0,
   };
+
+  private selection?: CursorSelection;
 
   constructor(editor: Editor) {
     this.editor = editor;
@@ -35,15 +47,19 @@ export default class Cursor {
     this.prevPosX = x;
     this.pos.x = x;
     this.pos.y = y;
+
+    this.selection = undefined;
   }
 
   public setPosX(x: number): void {
     this.pos.x = x;
     this.prevPosX = x;
+    this.selection = undefined;
   }
 
   public setPosY(y: number): void {
     this.pos.y = y;
+    this.selection = undefined;
   }
 
   public goLeft(): void {
@@ -90,5 +106,17 @@ export default class Cursor {
       const lineLen = this.getLineLen(this.pos.y);
       this.pos.x = Math.min(this.prevPosX, lineLen);
     }
+  }
+
+  public getSelection(): CursorSelection | undefined {
+    return this.selection;
+  }
+
+  public setSelection(startPos: CursorPos, endPos: CursorPos): void {
+    this.selection = { startPos, endPos };
+  }
+
+  public isCollapsed(): boolean {
+    return this.selection === undefined;
   }
 }
