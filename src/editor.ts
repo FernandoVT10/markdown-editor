@@ -278,6 +278,36 @@ export default class Editor {
         this.updateTreeCursor();
       }
     });
+
+    this.container.addEventListener("copy", e => {
+      e.preventDefault();
+      const selection = this.cursor.getSelection();
+      if(!this.cursor.isCollapsed() && selection) {
+        let text = "";
+
+        const { startPos, endPos } = selection;
+
+        if(startPos.y === endPos.y) {
+          const line = startPos.y;
+          text = this.buffer[line].slice(startPos.x, endPos.x);
+          console.log(startPos.x, endPos.x);
+        } else {
+          for(let line = startPos.y; line <= endPos.y; line++) {
+            const bufLine = this.buffer[line];
+
+            if(line === startPos.y) {
+              text += bufLine.slice(startPos.x);
+            } else if(line === endPos.y) {
+              text += bufLine.slice(0, endPos.x);
+            } else {
+              text += bufLine;
+            }
+          }
+        }
+
+        e.clipboardData?.setData("text/plain", text);
+      }
+    });
   }
 
   private setupMouse(): void {
@@ -352,7 +382,7 @@ export default class Editor {
 
         if(startPos !== undefined && endPos !== undefined) {
           // the selection in the browser can be made backwards
-          if(startPos.y > endPos.y) {
+          if(startPos.y > endPos.y || startPos.x > endPos.x) {
             this.cursor.setSelection(endPos, startPos);
           } else {
             this.cursor.setSelection(startPos, endPos);

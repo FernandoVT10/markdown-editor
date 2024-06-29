@@ -272,4 +272,54 @@ describe("Editor", () => {
       expect(editor.buffer[0]).toBe("so!");
     });
   });
+
+  describe("copying to clipboard", () => {
+    let setDataMock = jest.fn();
+
+    beforeEach(() => {
+      setDataMock.mockClear();
+    });
+
+    const dispatchCopy = () => {
+      const event = new Event("copy") as any;
+      event.clipboardData = {
+        setData: setDataMock,
+      };
+      container.dispatchEvent(event);
+    };
+
+    it("should copy text from one line", () => {
+      editor.buffer[0] = "elden ring";
+      editor.cursor.setSelection(
+        { x: 0, y: 0 },
+        { x: 5, y: 0 },
+      );
+      dispatchCopy();
+      expect(setDataMock).toHaveBeenCalledWith("text/plain", "elden");
+    });
+
+    it("should copy text from two lines", () => {
+      editor.buffer[0] = "elden ring\n";
+      editor.buffer[1] = "dark souls";
+      editor.cursor.setSelection(
+        { x: 6, y: 0 },
+        { x: 4, y: 1 },
+      );
+      dispatchCopy();
+      expect(setDataMock).toHaveBeenCalledWith("text/plain", "ring\ndark");
+    });
+
+    it("should copy text from 4 lines", () => {
+      editor.buffer[0] = "test 1\n";
+      editor.buffer[1] = "23\n";
+      editor.buffer[2] = "45\n";
+      editor.buffer[3] = "6 endtest";
+      editor.cursor.setSelection(
+        { x: 5, y: 0 },
+        { x: 1, y: 3 },
+      );
+      dispatchCopy();
+      expect(setDataMock).toHaveBeenCalledWith("text/plain", "1\n23\n45\n6");
+    });
+  });
 });
