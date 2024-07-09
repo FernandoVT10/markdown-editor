@@ -15,6 +15,35 @@ describe("Editor", () => {
     container.dispatchEvent(event);
   };
 
+  const dispatchPaste = (text: string) => {
+    const event = new Event("paste") as any;
+    event.clipboardData = {
+      getData: () => text,
+    };
+    container.dispatchEvent(event);
+  };
+
+  const dispatchUndo = () => {
+    dispatchKeydown({
+      ctrlKey: true,
+      key: "z",
+    });
+  };
+
+  const dispatchRedo = () => {
+    dispatchKeydown({
+      ctrlKey: true,
+      shiftKey: true,
+      key: "z",
+    });
+  };
+
+  const writeIntoEditor = (text: string) => {
+    for(const c of text) {
+      dispatchKeydown({ key: c });
+    }
+  };
+
   beforeEach(() => {
     container = document.createElement("div");
     editor = new Editor(container);
@@ -174,14 +203,6 @@ describe("Editor", () => {
   });
 
   describe("pasting text", () => {
-    const dispatchPaste = (text: string) => {
-      const event = new Event("paste") as any;
-      event.clipboardData = {
-        getData: () => text,
-      };
-      container.dispatchEvent(event);
-    };
-
     it("pastes one word", () => {
       editor.cursor.setPosX(0);
       dispatchPaste("neovim");
@@ -320,6 +341,220 @@ describe("Editor", () => {
       );
       dispatchCopy();
       expect(setDataMock).toHaveBeenCalledWith("text/plain", "1\n23\n45\n6");
+    });
+  });
+
+  describe("undo system", () => {
+    describe("adding chars", () => {
+      it("UNDO", () => {
+        writeIntoEditor("abc");
+        dispatchUndo();
+        expect(editor.buffer[0]).toBe("");
+        expectCursorPos(editor, 0, 0);
+      });
+
+      it("REDO", () => {
+        writeIntoEditor("abc");
+        dispatchUndo();
+        dispatchRedo();
+        expect(editor.buffer[0]).toBe("abc");
+        expectCursorPos(editor, 3, 0);
+      });
+    });
+
+    describe("removing chars with CTRL + Backspace", () => {
+      it("UNDO", () => {
+        writeIntoEditor("hello");
+        dispatchKeydown({ key: "Backspace", ctrlKey: true });
+        dispatchUndo();
+        expect(editor.buffer[0]).toBe("hello");
+        expectCursorPos(editor, 5, 0);
+      });
+
+      it("REDO", () => {
+        writeIntoEditor("hello");
+        dispatchKeydown({ key: "Backspace", ctrlKey: true });
+        dispatchUndo();
+        dispatchRedo();
+        expect(editor.buffer[0]).toBe("");
+        expectCursorPos(editor, 0, 0);
+      });
+    });
+
+    // it.only("undoes removing a selection", () => {
+    //   writeIntoEditor("hello");
+    //   // the selection includes only "ll" 
+    //   const startPos = { x: 2, y: 0 };
+    //   const endPos = { x: 4, y: 0 };
+    //   editor.cursor.setSelection(startPos, endPos);
+    //   dispatchKeydown({ key: "ArrowLeft" });
+    //   dispatchKeydown({ key: "Backspace" });
+    //   dispatchUndo();
+    //   expect(editor.buffer[0]).toBe("hello");
+    //   expectCursorPos(editor, 4, 0);
+    // });
+
+    // it("undoes removing multiline selection", () => {
+    //   writeIntoEditor("hello");
+    //   // the selection includes only "ll" 
+    //   const startPos = { x: 2, y: 0 };
+    //   const endPos = { x: 4, y: 0 };
+    //   editor.cursor.setSelection(startPos, endPos);
+    //   dispatchKeydown({ key: "Backspace" });
+    //   dispatchUndo();
+    //   expect(editor.buffer[0]).toBe("hello");
+    //   expectCursorPos(editor, 5, 0);
+    // });
+
+
+    it("undoes back to text typed before newline was created", () => {
+      writeIntoEditor("hello");
+      dispatchKeydown({ key: "Enter" });
+      dispatchUndo();
+      expect(editor.buffer).toHaveLength(1);
+      expect(editor.buffer[0]).toBe("hello");
+      expectCursorPos(editor, 5, 0);
+    });
+
+    describe("adding a newline", () => {
+      it("UNDO", () => {
+        dispatchKeydown({ key: "Enter" });
+        dispatchUndo();
+        expect(editor.buffer).toHaveLength(1);
+        expect(editor.buffer[0]).toBe("");
+        expectCursorPos(editor, 0, 0);
+      });
+
+      it("REDO", () => {
+        dispatchKeydown({ key: "Enter" });
+        dispatchUndo();
+        dispatchRedo();
+        expect(editor.buffer).toHaveLength(2);
+        expect(editor.buffer[0]).toBe("\n");
+        expect(editor.buffer[1]).toBe("");
+        expectCursorPos(editor, 0, 1);
+      });
+    });
+
+    describe("removing a new line", () => {
+      it("UNDO", () => {
+        dispatchKeydown({ key: "Enter" });
+        dispatchKeydown({ key: "Backspace" });
+        dispatchUndo();
+        expect(editor.buffer).toHaveLength(2);
+        expectCursorPos(editor, 0, 1);
+      });
+
+      it("REDO", () => {
+        dispatchKeydown({ key: "Enter" });
+        dispatchKeydown({ key: "Backspace" });
+        dispatchUndo();
+        dispatchRedo();
+        expect(editor.buffer).toHaveLength(1);
+        expectCursorPos(editor, 0, 0);
+      });
+    });
+
+    describe("pasting text", () => {
+      describe("single line", () => {
+        it("UNDO", () => {
+          dispatchPaste("Hello");
+          dispatchUndo();
+          expect(editor.buffer[0]).toBe("");
+          expectCursorPos(editor, 0, 0);
+        });
+
+        it("REDO", () => {
+          dispatchPaste("Hello");
+          dispatchUndo();
+          dispatchRedo();
+          expect(editor.buffer[0]).toBe("Hello");
+          expectCursorPos(editor, 5, 0);
+        });
+      });
+
+      describe("multiple lines", () => {
+        it("UNDO", () => {
+          dispatchPaste("Hello\nWorld\n!");
+          dispatchUndo();
+          expect(editor.buffer[0]).toBe("");
+          expectCursorPos(editor, 0, 0);
+        });
+
+        it("REDO", () => {
+          dispatchPaste("Hello\nWorld\n!");
+          dispatchUndo();
+          dispatchRedo();
+          expect(editor.buffer).toHaveLength(3);
+          expect(editor.buffer[0]).toBe("Hello\n");
+          expect(editor.buffer[1]).toBe("World\n");
+          expect(editor.buffer[2]).toBe("!");
+          expectCursorPos(editor, 1, 2);
+        });
+      });
+    });
+
+    describe("removing a selection", () => {
+      describe("single line", () => {
+        const text = "hello";
+        // the selection includes only "ll" 
+        const startPos = { x: 2, y: 0 };
+        const endPos = { x: 4, y: 0 };
+
+        it("UNDO", () => {
+          writeIntoEditor(text);
+          editor.cursor.setSelection(startPos, endPos);
+          // arrow left is used to call saveTypedText indirectly
+          dispatchKeydown({ key: "ArrowLeft" });
+          dispatchKeydown({ key: "Backspace" });
+          dispatchUndo();
+          expect(editor.buffer[0]).toBe(text);
+          expectCursorPos(editor, 4, 0);
+        });
+
+        it("REDO", () => {
+          writeIntoEditor(text);
+          editor.cursor.setSelection(startPos, endPos);
+          // arrow left is used to call saveTypedText indirectly
+          dispatchKeydown({ key: "ArrowLeft" });
+          dispatchKeydown({ key: "Backspace" });
+          dispatchUndo();
+          dispatchRedo();
+          expect(editor.buffer[0]).toBe("heo");
+          expectCursorPos(editor, 2, 0);
+        });
+      });
+
+      describe("multiple lines", () => {
+        const text = "Hello\nWorld\n!";
+        // the selection includes only "o\nWorld\n!" 
+        const startPos = { x: 4, y: 0 };
+        const endPos = { x: 1, y: 2 };
+
+        it("UNDO", () => {
+          writeIntoEditor(text);
+          editor.cursor.setSelection(startPos, endPos);
+          // arrow left is used to call saveTypedText indirectly
+          dispatchKeydown({ key: "ArrowLeft" });
+          dispatchKeydown({ key: "Backspace" });
+          dispatchUndo();
+          expect(editor.buffer).toHaveLength(3);
+          expectCursorPos(editor, 1, 2);
+        });
+
+        it("REDO", () => {
+          writeIntoEditor(text);
+          editor.cursor.setSelection(startPos, endPos);
+          // arrow left is used to call saveTypedText indirectly
+          dispatchKeydown({ key: "ArrowLeft" });
+          dispatchKeydown({ key: "Backspace" });
+          dispatchUndo();
+          dispatchRedo();
+          expect(editor.buffer).toHaveLength(1);
+          expect(editor.buffer[0]).toBe("Hell");
+          expectCursorPos(editor, 4, 0);
+        });
+      });
     });
   });
 });

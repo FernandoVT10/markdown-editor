@@ -1,14 +1,34 @@
 import Cursor, { CursorPos } from "./cursor";
 import Tree from "./tree";
+import UndoManager from "./undoManager";
 
+import {
+  LineOps,
+  LineOpType,
+  addLineOp,
+  removeLineOp,
+  updateLineOp
+} from "./lineOps";
 import { parseLine } from "./parser";
 import { isalnum, isSpecialAction } from "./utils";
+
+type TypingState = {
+  isTyping: boolean;
+  startCursorPos?: CursorPos;  // cursor position before starting to type
+  startLineBuff?: string;      // buffer of the line we're going to type before of update it
+  startLine?: number;
+}
 
 export default class Editor {
   public buffer: string[] = [];
   public cursor: Cursor;
   private container: HTMLElement;
   private nodesTree: Tree;
+
+  private undoManager: UndoManager;
+  private typingState: TypingState = {
+    isTyping: false,
+  };
 
   private isMouseBtnPressed = false;
   private mouseStartedAtImg = false;
@@ -18,6 +38,7 @@ export default class Editor {
     this.container = container;
     this.cursor = new Cursor(this);
     this.nodesTree = new Tree(this.container);
+    this.undoManager = new UndoManager(this);
 
     this.buffer.push("");
 
@@ -57,9 +78,80 @@ export default class Editor {
     }
   }
 
+  public execLinesOps(startLine: number, linesOps: LineOpType[]): void {
+    let lineNumber = startLine;
+
+    // TODO: group similar sequencial operations and execute them together
+    for(const lineOp of linesOps) {
+      switch(lineOp.type) {
+        case LineOps.Add: {
+          this.addLine(lineNumber, lineOp.addedBuff);
+        } break;
+        case LineOps.Update: {
+          this.updateLine(lineNumber, lineOp.postUpdateBuff);
+        } break;
+        case LineOps.Remove: {
+          this.removeLine(lineNumber);
+          lineNumber--;
+        } break;
+      }
+
+      lineNumber++;
+    }
+  }
+
+  public revertLinesOps(startLine: number, lineOps: LineOpType[]): void {
+    let lineNumber = startLine;
+
+    // TODO: group similar sequencial operations and execute them together
+    for(const lineOp of lineOps) {
+      switch(lineOp.type) {
+        case LineOps.Add: {
+          this.removeLine(lineNumber);
+          lineNumber--;
+        } break;
+        case LineOps.Update: {
+          this.updateLine(lineNumber, lineOp.preUpdateBuff);
+        } break;
+        case LineOps.Remove: {
+          this.addLine(lineNumber, lineOp.removedBuff);
+        } break;
+      }
+
+      lineNumber++;
+    }
+  }
+
   private updateTreeCursor(): void {
     // TODO: make this better
     if(process.env.NODE_ENV !== "test") this.nodesTree.onCursorUpdate(this.cursor);
+  }
+
+  public updateCursorPos(cursorPos: CursorPos): void {
+    const { x, y } = cursorPos;
+    this.cursor.setPos(x, y);
+    this.updateTreeCursor();
+  }
+
+  private saveTypedBuffer(): void {
+    if(this.typingState.isTyping) {
+      const bufLine = this.typingState.startLineBuff as string;
+      const cursorPos = this.typingState.startCursorPos as CursorPos;
+      const line = this.typingState.startLine as number;
+
+      const updatedBuff = this.buffer[line];
+
+      this.undoManager.save({
+        linesOps: [
+          updateLineOp(bufLine, updatedBuff),
+        ],
+        topLine: line - 1,
+        oldCursorPos: cursorPos,
+        newCursorPos: { ...this.cursor.getPos() },
+      });
+
+      this.typingState.isTyping = false;
+    }
   }
 
   private addChar(char: string): void {
@@ -75,55 +167,83 @@ export default class Editor {
     const rightPart = bufLine.slice(column);
 
     if(char === "\n") {
-      this.cursor.setPos(0, this.cursor.getPosY() + 1);
-      this.updateLine(line, leftPart + char);
-      this.addLine(line + 1, rightPart);
+      const updatedBuff = leftPart + char;
+      const addedBuff = rightPart;
+
+      this.saveTypedBuffer();
+      this.undoManager.saveAndExec({
+        linesOps: [
+          updateLineOp(bufLine, updatedBuff),
+          addLineOp(addedBuff),
+        ],
+        topLine: line - 1,
+        oldCursorPos: { ...this.cursor.getPos() },
+        newCursorPos: { x: 0, y: line + 1 },
+      });
     } else {
+      if(!this.typingState.isTyping) {
+        this.typingState.isTyping = true;
+        this.typingState.startLineBuff = bufLine;
+        this.typingState.startCursorPos = { ...this.cursor.getPos() };
+        this.typingState.startLine = line;
+      }
+
       this.cursor.setPosX(this.cursor.getPosX() + 1);
       const text = leftPart + char + rightPart;
       this.updateLine(line, text);
+      this.updateTreeCursor();
     }
-
-    this.updateTreeCursor();
   }
 
   private removeChar(): void {
     if(!this.cursor.isCollapsed())
       return this.removeSelection();
 
-    // TODO: this function should save history
     const posX = this.cursor.getPosX();
     const posY = this.cursor.getPosY();
     if(posX === 0 && posY === 0) return;
 
     if(posX > 0) {
       const column = posX;
-      this.cursor.setPosX(posX - 1);
-
       const line = posY;
       const bufLine = this.buffer[line];
       const leftPart = bufLine.slice(0, column - 1);
       const rightPart = bufLine.slice(column);
-      this.updateLine(line, leftPart + rightPart);
-    } else {
-      const line = posY;
-      const prevLine = line - 1;
-      const bufLine = this.buffer[line];
-      const prevLineLen = this.buffer[prevLine].length;
-
-      let prevBufLine = this.buffer[prevLine].slice(0, prevLineLen - 1);
-
-      if(bufLine.length) {
-        prevBufLine += bufLine;
+      
+      if(!this.typingState.isTyping) {
+        this.typingState.isTyping = true;
+        this.typingState.startLineBuff = bufLine;
+        this.typingState.startCursorPos = { ...this.cursor.getPos() };
+        this.typingState.startLine = line;
       }
 
-      this.cursor.setPos(prevLineLen - 1, posY - 1);
+      this.cursor.setPosX(posX - 1);
+      this.updateLine(line, leftPart + rightPart);
+      this.updateTreeCursor();
+    } else {
+      // deletes a new line
+      const currentLine = posY;
+      const prevLine = currentLine - 1;
+      const prevLineLen = this.buffer[prevLine].length;
 
-      this.removeLine(line);
-      this.updateLine(prevLine, prevBufLine);
+      let updatedBuff = this.buffer[prevLine].slice(0, prevLineLen - 1);
+
+      const currentLineBuff = this.buffer[currentLine];
+      if(currentLineBuff.length) {
+        updatedBuff += currentLineBuff;
+      }
+
+      this.saveTypedBuffer();
+      this.undoManager.saveAndExec({
+        linesOps: [
+          updateLineOp(this.buffer[prevLine], updatedBuff),
+          removeLineOp(currentLineBuff),
+        ],
+        topLine: prevLine - 1,
+        oldCursorPos: { ...this.cursor.getPos() },
+        newCursorPos: { x: prevLineLen - 1, y: currentLine - 1 },
+      });
     }
-
-    this.updateTreeCursor();
   }
 
   private removeCharSequence(): void {
@@ -140,15 +260,20 @@ export default class Editor {
 
       const leftPart = bufLine.slice(0, column - count);
       const rightPart = bufLine.slice(column);
+      const updatedBuff = leftPart + rightPart;
 
-      this.cursor.setPosX(column - count)
-
-      this.updateLine(line, leftPart + rightPart); 
+      this.saveTypedBuffer();
+      this.undoManager.saveAndExec({
+        linesOps: [
+          updateLineOp(bufLine, updatedBuff),
+        ],
+        topLine: line - 1,
+        oldCursorPos: { ...this.cursor.getPos() },
+        newCursorPos: { x: column - count, y: line },
+      });
     } else {
       this.removeChar();
     }
-
-    this.updateTreeCursor();
   }
 
   private removeSelection(): void {
@@ -156,34 +281,45 @@ export default class Editor {
 
     if(!selection) return;
     const { startPos, endPos } = selection;
+    const linesOps: LineOpType[] = [];
 
     if(startPos.y === endPos.y) {
       const line = startPos.y;
       const bufLine = this.buffer[line];
       const leftPart = bufLine.slice(0, startPos.x);
       const rightPart = bufLine.slice(endPos.x);
-      this.updateLine(line, leftPart + rightPart);
+      linesOps.push(updateLineOp(bufLine, leftPart + rightPart));
     } else {
-      // remove all lines at the middle of the selection
-      // this removes the lines from bottom to top
-      if(endPos.y > startPos.y + 1) {
-        for(let line = endPos.y - 1; line > startPos.y; line--) {
-          this.removeLine(line);
-        }
-      }
-
       const startLine = startPos.y;
-      const endLine = startPos.y + 1;
+      const endLine = endPos.y;
+
+      const oldBuff = this.buffer[startLine];
 
       const startBuf = this.buffer[startLine].slice(0, startPos.x);
       const endBuf = this.buffer[endLine].slice(endPos.x);
+      const updatedBuff = startBuf + endBuf;
 
-      this.updateLine(startLine, startBuf + endBuf);
-      this.removeLine(endLine);
+      linesOps.push(updateLineOp(oldBuff, updatedBuff));
+
+      // remove all lines at the middle of the selection
+      if(endPos.y > startPos.y + 1) {
+        for(let line = startPos.y + 1; line < endPos.y; line++) {
+          linesOps.push(removeLineOp(this.buffer[line]));
+        }
+      }
+
+      const removedBuff = this.buffer[endLine];
+      linesOps.push(removeLineOp(removedBuff));
     }
 
-    this.cursor.setPos(startPos.x, startPos.y);
-    this.updateTreeCursor();
+    const topLine = startPos.y - 1;
+
+    this.undoManager.saveAndExec({
+      linesOps,
+      topLine,
+      oldCursorPos: endPos,
+      newCursorPos: startPos,
+    });
   }
 
   private setupKeyboard(): void {
@@ -191,35 +327,41 @@ export default class Editor {
       if(isSpecialAction(e)) return;
       e.preventDefault();
 
-      if(e.ctrlKey && e.key === "a") {
-        console.table(this.buffer);
-        console.log(this.nodesTree);
-        return;
-      } else if(e.ctrlKey && e.key === "i") {
-        const text = prompt("Enter text") || "";
-        this.updateLine(0, text);
+      // UNDO and REDO
+      const key = e.key.toLowerCase();
+      if(e.ctrlKey && key === "z") {
+        if(e.shiftKey) {
+          this.undoManager.redo();
+        } else {
+          this.saveTypedBuffer();
+          this.undoManager.undo();
+        }
+
         return;
       }
 
       switch(e.key) {
         case "ArrowLeft": 
+          this.saveTypedBuffer();
           this.cursor.goLeft();
           this.updateTreeCursor();
           break;
         case "ArrowRight":
+          this.saveTypedBuffer();
           this.cursor.goRight();
           this.updateTreeCursor();
           break;
         case "ArrowDown":
+          this.saveTypedBuffer();
           this.cursor.goDown();
           this.updateTreeCursor();
           break;
         case "ArrowUp":
+          this.saveTypedBuffer();
           this.cursor.goUp();
           this.updateTreeCursor();
           break;
         case "Backspace":
-          // TODO: should remove the selection if there's one
           if(e.ctrlKey) {
             this.removeCharSequence();
           } else {
@@ -255,29 +397,46 @@ export default class Editor {
       const rightPart = bufLine.slice(posX);
 
       const pastedLines = pastedText.split("\n");
+
+      const linesOps: LineOpType[] = [];
+      let newCursorPos: CursorPos;
+
       if(pastedLines.length > 1) {
         for(let i = 0; i < pastedLines.length; i++) {
           let text = pastedLines[i];
           if(i === 0) {
-            this.updateLine(line + i, leftPart + text + "\n");
+            const updatedBuff = leftPart + text + "\n";
+            linesOps.push(updateLineOp(bufLine, updatedBuff));
           } else if(i === pastedLines.length - 1) {
-            this.addLine(line + i, text + rightPart);
+            const addedBuff = text + rightPart;
+            linesOps.push(addLineOp(addedBuff));
           } else {
-            this.addLine(line + i, text + "\n");
+            const addedBuff = text + "\n";
+            linesOps.push(addLineOp(addedBuff));
           }
         }
 
         const lastIndex = pastedLines.length - 1;
-        const lastInsertedLine = line + lastIndex;
-        const newPosX = pastedLines[lastIndex].length;
-
-        this.cursor.setPos(newPosX, lastInsertedLine);
-        this.updateTreeCursor();
+        newCursorPos = {
+          x: pastedLines[lastIndex].length,
+          y: line + lastIndex,
+        };
       } else {
-        this.cursor.setPosX(posX + pastedText.length);
-        this.updateLine(line, leftPart + pastedText + rightPart);
-        this.updateTreeCursor();
+        const updatedBuff = leftPart + pastedText + rightPart;
+        linesOps.push(updateLineOp(bufLine, updatedBuff));
+        newCursorPos = {
+          x: posX + pastedText.length,
+          y: line,
+        };
       }
+
+      this.saveTypedBuffer();
+      this.undoManager.saveAndExec({
+        linesOps,
+        topLine: line - 1,
+        oldCursorPos: { ...this.cursor.getPos() },
+        newCursorPos,
+      });
     });
 
     this.container.addEventListener("copy", e => {
@@ -312,6 +471,7 @@ export default class Editor {
 
   private setupMouse(): void {
     this.container.addEventListener("mousedown", e => {
+      this.saveTypedBuffer();
       this.isMouseBtnPressed = true;
 
       const target = e.target as HTMLElement;
