@@ -31,8 +31,13 @@ export default class Cursor {
     return len;
   }
 
-  public getPos(): { x: number, y: number } {
+  public getPos(): CursorPos {
     return this.pos;
+  }
+  
+  // returns a copy of the position object
+  public getPosCopy(): CursorPos {
+    return { ...this.pos };
   }
   
   public getPosX(): number {

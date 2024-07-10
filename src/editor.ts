@@ -147,7 +147,7 @@ export default class Editor {
         ],
         topLine: line - 1,
         oldCursorPos: cursorPos,
-        newCursorPos: { ...this.cursor.getPos() },
+        newCursorPos: this.cursor.getPosCopy(),
       });
 
       this.typingState.isTyping = false;
@@ -177,14 +177,14 @@ export default class Editor {
           addLineOp(addedBuff),
         ],
         topLine: line - 1,
-        oldCursorPos: { ...this.cursor.getPos() },
+        oldCursorPos: this.cursor.getPosCopy(),
         newCursorPos: { x: 0, y: line + 1 },
       });
     } else {
       if(!this.typingState.isTyping) {
         this.typingState.isTyping = true;
         this.typingState.startLineBuff = bufLine;
-        this.typingState.startCursorPos = { ...this.cursor.getPos() };
+        this.typingState.startCursorPos = this.cursor.getPosCopy();
         this.typingState.startLine = line;
       }
 
@@ -213,7 +213,7 @@ export default class Editor {
       if(!this.typingState.isTyping) {
         this.typingState.isTyping = true;
         this.typingState.startLineBuff = bufLine;
-        this.typingState.startCursorPos = { ...this.cursor.getPos() };
+        this.typingState.startCursorPos = this.cursor.getPosCopy();
         this.typingState.startLine = line;
       }
 
@@ -240,7 +240,7 @@ export default class Editor {
           removeLineOp(currentLineBuff),
         ],
         topLine: prevLine - 1,
-        oldCursorPos: { ...this.cursor.getPos() },
+        oldCursorPos: this.cursor.getPosCopy(),
         newCursorPos: { x: prevLineLen - 1, y: currentLine - 1 },
       });
     }
@@ -268,7 +268,7 @@ export default class Editor {
           updateLineOp(bufLine, updatedBuff),
         ],
         topLine: line - 1,
-        oldCursorPos: { ...this.cursor.getPos() },
+        oldCursorPos: this.cursor.getPosCopy(),
         newCursorPos: { x: column - count, y: line },
       });
     } else {
@@ -434,7 +434,7 @@ export default class Editor {
       this.undoManager.saveAndExec({
         linesOps,
         topLine: line - 1,
-        oldCursorPos: { ...this.cursor.getPos() },
+        oldCursorPos: this.cursor.getPosCopy(),
         newCursorPos,
       });
     });
