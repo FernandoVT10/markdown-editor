@@ -297,4 +297,52 @@ describe("Lexer", () => {
       });
     });
   });
+
+  describe("Horizontal Rule", () => {
+    const testRule = (buffer: string) => {
+      const lexer = new Lexer(buffer);
+      const tokens = lexer.scanTokens();
+
+      expect(tokens).toHaveLength(1);
+
+      const rule = tokens[0] as Tokens.Rule;
+      expect(rule.type).toBe(Types.Rule);
+      expect(rule.range).toEqual([0, buffer.length]);
+      expect(rule.raw).toBe(buffer);
+    };
+
+    describe("returns a rule", () => {
+      it("using \"-\"", () => {
+        testRule("---");
+      });
+
+      it("using \"*\"", () => {
+        testRule("***");
+      });
+
+      it("using \"_\"", () => {
+        testRule("___");
+      });
+    });
+
+    it("returns a rule ignoring spaces in the middle", () => {
+      testRule("-   -    -");
+    });
+
+    it("returns a rule if buff contains more than 3 equal chars", () => {
+      testRule("-------");
+    });
+
+    it("doesn't return a rule if line starts with space", () => {
+      const lexer = new Lexer(" ---");
+      const rule = lexer.scanTokens()[0] as Tokens.Rule;
+      expect(rule.type).not.toBe(Types.Rule);
+    });
+
+    it("doesn't return a rule if there's an invalid char", () => {
+      const lexer = new Lexer("--->");
+      const rule = lexer.scanTokens()[0] as Tokens.Rule;
+      expect(rule.type).not.toBe(Types.Rule);
+    });
+  });
 });

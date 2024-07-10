@@ -446,6 +446,65 @@ export class MDImage extends MDNode {
   }
 }
 
+export class Rule extends MDNode {
+  private hrEl: HTMLHRElement;
+  private rawMarkdown: Text;
+
+  private editing = false;
+
+  constructor(token: Tokens.Rule) {
+    const { range, raw } = token;
+    super(range, "div");
+
+    this.rawMarkdown = new Text(raw, range);
+    this.hrEl = document.createElement("hr");
+    this.htmlEl.appendChild(this.hrEl);
+  }
+
+  private activateEditMode(): void {
+    if(this.editing) return;
+    this.editing = true;
+
+    this.htmlEl.removeChild(this.hrEl);
+    this.htmlEl.appendChild(this.rawMarkdown.getHTMLEl());
+  }
+
+  private deactivateEditMode(): void {
+    if(!this.editing) return;
+    this.editing = false;
+
+    this.htmlEl.removeChild(this.rawMarkdown.getHTMLEl());
+    this.htmlEl.appendChild(this.hrEl);
+  }
+
+  setLine(line: number): void {
+    this.line = line;
+    this.rawMarkdown.setLine(line);
+  }
+
+  onCursorUpdate(cursor: Cursor): void {
+    if(this.isInCursorRange(cursor)) {
+      this.activateEditMode();
+      this.rawMarkdown.onCursorUpdate(cursor);
+    } else {
+      this.deactivateEditMode();
+    }
+  }
+
+  getCursorPos(selNode: Node, offset: number): CursorPos | undefined {
+    if(this.htmlEl.isSameNode(selNode) || this.hrEl.isSameNode(selNode)) {
+      return {
+        x: this.getEndPos(),
+        y: this.line,
+      };
+    }
+
+    if(this.editing) {
+      return this.rawMarkdown.getCursorPos(selNode, offset);
+    }
+  }
+}
+
 export default class Tree {
   private nodeLines: MDBlockNode[] = [];
   private editorContainer: HTMLElement;

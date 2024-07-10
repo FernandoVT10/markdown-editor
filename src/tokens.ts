@@ -8,6 +8,7 @@ export enum Types {
   NewLine,
   Link,
   Image,
+  Rule,
 }
 
 export type MDRange = [number, number];
@@ -76,6 +77,12 @@ export namespace Tokens {
     raw: string;
     wasClosed: boolean;
   }
+
+  export interface Rule {
+    type: Types.Rule,
+    range: MDRange,
+    raw: string;
+  }
 }
 
 export type BlockTokens = (
@@ -94,4 +101,5 @@ export type Token = (
   | Tokens.Paragraph
   | Tokens.NewLine
   | Tokens.Link
-  | Tokens.Image);
+  | Tokens.Image
+  | Tokens.Rule);

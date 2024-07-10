@@ -9,7 +9,8 @@ import {
   Code,
   Header,
   Link,
-  MDImage
+  MDImage,
+  Rule,
 } from "./tree";
 
 import { Types, Token, BlockTokens } from "./tokens";
@@ -56,6 +57,9 @@ export function parseTokens(tokens: Token[]): MDNode[] {
         break;
       case Types.Image:
         resNodes.push(new MDImage(token));
+        break;
+      case Types.Rule:
+        resNodes.push(new Rule(token));
         break;
     }
   }

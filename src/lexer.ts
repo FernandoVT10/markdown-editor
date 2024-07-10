@@ -276,6 +276,31 @@ export default class Lexer {
     return tokens;
   }
 
+  private processRule(firstChar: string, startPos: number, tokens: Token[]) {
+    let peekCursor = 0;
+    let repeatedChars = 1;
+    let rawText = firstChar;
+    let nextC = this.peekChar();
+
+    while(nextC === firstChar || nextC === " ") {
+      if(nextC === firstChar) repeatedChars++;
+      rawText += nextC;
+      nextC = this.peekChar(++peekCursor);
+    }
+
+    if(repeatedChars >= 3 && (nextC === "\n" || nextC === "\0")) {
+      this.advance(peekCursor);
+
+      tokens.push({
+        type: Types.Rule,
+        range: [startPos, this.bufferCursor],
+        raw: rawText,
+      });
+    } else {
+      this.processParagraph(startPos, tokens);
+    }
+  }
+
   private blockTokens(): Token[] {
     const tokens: Token[] = [];
 
@@ -292,6 +317,11 @@ export default class Lexer {
             type: Types.NewLine,
             range: [startPos, startPos + 1],
           });
+          break;
+        case "*":
+        case "-":
+        case "_":
+          this.processRule(c, startPos, tokens);
           break;
         default: this.processParagraph(startPos, tokens);
       }
