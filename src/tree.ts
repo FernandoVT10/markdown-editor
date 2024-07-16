@@ -39,10 +39,13 @@ export abstract class MDNode {
       return isPointInRange(x, this.getRange()) && this.line === y;
     } else {
       const selection = cursor.getSelection();
-      if(selection) return isLineRangeInSel({
-        line: this.line,
-        range: this.getRange(),
-      }, selection);
+
+      if(selection) {
+        return isLineRangeInSel({
+          line: this.line,
+          range: this.getRange(),
+        }, selection);
+      }
     }
 
     return false;
@@ -502,6 +505,19 @@ export class Rule extends MDNode {
     if(this.editing) {
       return this.rawMarkdown.getCursorPos(selNode, offset);
     }
+  }
+}
+
+export class MDList extends MDExBlockNode {
+  protected startNode: Text;
+  protected wasClosed = true;
+
+  constructor(token: Tokens.List, nodes: MDNode[]) {
+    const { range, marker } = token;
+    super(range, nodes, "div");
+
+    const startPos = this.getStartPos();
+    this.startNode = new Text(marker, [startPos, startPos + 1]);
   }
 }
 

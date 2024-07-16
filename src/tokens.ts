@@ -9,6 +9,7 @@ export enum Types {
   Link,
   Image,
   Rule,
+  List,
 }
 
 export type MDRange = [number, number];
@@ -79,9 +80,16 @@ export namespace Tokens {
   }
 
   export interface Rule {
-    type: Types.Rule,
-    range: MDRange,
+    type: Types.Rule;
+    range: MDRange;
     raw: string;
+  }
+
+  export interface List {
+    type: Types.List;
+    range: MDRange;
+    marker: string;
+    tokens: Token[];
   }
 }
 
@@ -90,6 +98,7 @@ export type BlockTokens = (
   | Tokens.Italic
   | Tokens.Header
   | Tokens.Paragraph
+  | Tokens.List
 );
 
 export type Token = (
@@ -102,4 +111,5 @@ export type Token = (
   | Tokens.NewLine
   | Tokens.Link
   | Tokens.Image
-  | Tokens.Rule);
+  | Tokens.Rule
+  | Tokens.List);

@@ -345,4 +345,47 @@ describe("Lexer", () => {
       expect(rule.type).not.toBe(Types.Rule);
     });
   });
+
+  describe("Unordered List", () => {
+    const testUnorderedList = (buffer: string): void => {
+      const lexer = new Lexer(buffer);
+
+      const tokens = lexer.scanTokens();
+      expect(tokens).toHaveLength(1);
+
+      const list = tokens[0] as Tokens.List;
+      expect(list.type).toBe(Types.List);
+      expect(list.range).toEqual([0, buffer.length]);
+      expect(list.marker).toBe("-");
+      expect(list.tokens).toHaveLength(1);
+
+      const text = list.tokens[0];
+      expect(text.type).toBe(Types.Text);
+      expect(text.range).toEqual([1, buffer.length]);
+    };
+
+    describe("returns an unordered list", () => {
+      it("using \"-\"", () => {
+        testUnorderedList("- Hello");
+      });
+
+      it("using \"*\"", () => {
+        testUnorderedList("* Hello");
+      });
+    });
+
+    it("doesn't return a list if there's a character after list mark", () => {
+      const buffer = "-Hello";
+      const lexer = new Lexer(buffer);
+      const token = lexer.scanTokens()[0] as Tokens.List;
+      expect(token.type).not.toBe(Types.List);
+    });
+
+    it("doesn't return a list if there's not a space after list mark", () => {
+      const buffer = "-";
+      const lexer = new Lexer(buffer);
+      const token = lexer.scanTokens()[0] as Tokens.List;
+      expect(token.type).not.toBe(Types.List);
+    });
+  });
 });

@@ -1,5 +1,8 @@
 import { Token, Types } from "./tokens";
 
+const ZERO_CHAR_CODE = "0".charCodeAt(0);
+const NINE_CHAR_CODE = "9".charCodeAt(0);
+
 const HEADER_MAX_LEVEL = 6;
 
 export default class Lexer {
@@ -236,6 +239,53 @@ export default class Lexer {
     });
   }
 
+  private processRule(firstChar: string, startPos: number, tokens: Token[]): boolean {
+    let peekCursor = 0;
+    let repeatedChars = 1;
+    let rawText = firstChar;
+    let nextC = this.peekChar();
+
+    while(nextC === firstChar || nextC === " ") {
+      if(nextC === firstChar) repeatedChars++;
+      rawText += nextC;
+      nextC = this.peekChar(++peekCursor);
+    }
+
+    if(repeatedChars >= 3 && (nextC === "\n" || nextC === "\0")) {
+      this.advance(peekCursor);
+
+      tokens.push({
+        type: Types.Rule,
+        range: [startPos, this.bufferCursor],
+        raw: rawText,
+      });
+
+      return true;
+    }
+
+    return false;
+  }
+
+  private isOrderedList(char: string): boolean {
+    const code = char.charCodeAt(0);
+
+    return code >= ZERO_CHAR_CODE
+      && code <= NINE_CHAR_CODE
+      && this.peekChar() === "."
+      && this.peekChar(1) === " ";
+  }
+
+  private processList(marker: string, startPos: number, tokens: Token[]): void {
+    const inlineTokens = this.inlineTokens();
+
+    tokens.push({
+      type: Types.List,
+      range: [startPos, this.bufferCursor],
+      tokens: inlineTokens,
+      marker,
+    });
+  }
+
   private inlineTokens(predicate?: (c: string, nextC: string) => boolean): Token[] {
     const tokens: Token[] = [];
 
@@ -276,37 +326,16 @@ export default class Lexer {
     return tokens;
   }
 
-  private processRule(firstChar: string, startPos: number, tokens: Token[]) {
-    let peekCursor = 0;
-    let repeatedChars = 1;
-    let rawText = firstChar;
-    let nextC = this.peekChar();
-
-    while(nextC === firstChar || nextC === " ") {
-      if(nextC === firstChar) repeatedChars++;
-      rawText += nextC;
-      nextC = this.peekChar(++peekCursor);
-    }
-
-    if(repeatedChars >= 3 && (nextC === "\n" || nextC === "\0")) {
-      this.advance(peekCursor);
-
-      tokens.push({
-        type: Types.Rule,
-        range: [startPos, this.bufferCursor],
-        raw: rawText,
-      });
-    } else {
-      this.processParagraph(startPos, tokens);
-    }
-  }
-
   private blockTokens(): Token[] {
     const tokens: Token[] = [];
 
     while(!this.isBufferEnd()) {
       const startPos = this.bufferCursor;
       const c = this.advanceWithChar();
+
+      if(this.isOrderedList(c)) {
+        console.log("LIST!");
+      }
 
       switch(c) {
         case "#": 
@@ -318,10 +347,20 @@ export default class Lexer {
             range: [startPos, startPos + 1],
           });
           break;
-        case "*":
-        case "-":
         case "_":
-          this.processRule(c, startPos, tokens);
+          if(!this.processRule(c, startPos, tokens)) {
+            this.processParagraph(startPos, tokens);
+          }
+          break;
+        case "-":
+        case "*":
+          if(!this.processRule(c, startPos, tokens)) {
+            if(this.match(" ")) {
+              this.processList("-", startPos, tokens);
+            } else {
+              this.processParagraph(startPos, tokens);
+            }
+          }
           break;
         default: this.processParagraph(startPos, tokens);
       }
