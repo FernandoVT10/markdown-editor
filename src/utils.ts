@@ -1,5 +1,5 @@
 import { CursorSelection } from "./cursor";
-import { MDNode } from "./tree";
+import { MDNode } from "./tree/definitions";
 import { MDRange } from "./tokens";
 
 export function isalnum(text: string): boolean {

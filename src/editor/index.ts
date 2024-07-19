@@ -1,6 +1,7 @@
-import Cursor, { CursorPos } from "./cursor";
-import Tree from "./tree";
+import Cursor, { CursorPos } from "../cursor";
+import Tree from "../tree";
 import UndoManager from "./undoManager";
+import Clipboard from "./clipboard";
 
 import {
   LineOps,
@@ -8,9 +9,9 @@ import {
   addLineOp,
   removeLineOp,
   updateLineOp
-} from "./lineOps";
-import { parseLine } from "./parser";
-import { isalnum, isSpecialAction } from "./utils";
+} from "../lineOps";
+import { parseLine } from "../parser";
+import { isalnum, isSpecialAction } from "../utils";
 
 type TypingState = {
   isTyping: boolean;
@@ -19,13 +20,16 @@ type TypingState = {
   startLine?: number;
 }
 
+export type Buffer = string[];
+export type Container = HTMLElement;
+
 export default class Editor {
-  public buffer: string[] = [];
+  public buffer: Buffer = [];
   public cursor: Cursor;
-  private container: HTMLElement;
+  public container: Container;
   private nodesTree: Tree;
 
-  private undoManager: UndoManager;
+  public undoManager: UndoManager;
   private typingState: TypingState = {
     isTyping: false,
   };
@@ -42,8 +46,9 @@ export default class Editor {
 
     this.buffer.push("");
 
+    Clipboard.setup(this);
+
     this.setupKeyboard();
-    this.setupClipboard();
     this.setupMouse();
     this.setupSelection();
     this.setupDebug();
@@ -133,7 +138,7 @@ export default class Editor {
     this.updateTreeCursor();
   }
 
-  private saveTypedBuffer(): void {
+  public saveTypedBuffer(): void {
     if(this.typingState.isTyping) {
       const bufLine = this.typingState.startLineBuff as string;
       const cursorPos = this.typingState.startCursorPos as CursorPos;
@@ -182,10 +187,12 @@ export default class Editor {
       });
     } else {
       if(!this.typingState.isTyping) {
-        this.typingState.isTyping = true;
-        this.typingState.startLineBuff = bufLine;
-        this.typingState.startCursorPos = this.cursor.getPosCopy();
-        this.typingState.startLine = line;
+        this.typingState = {
+          isTyping: true,
+          startLineBuff: bufLine,
+          startCursorPos: this.cursor.getPosCopy(),
+          startLine: line,
+        };
       }
 
       this.cursor.setPosX(this.cursor.getPosX() + 1);
@@ -211,10 +218,12 @@ export default class Editor {
       const rightPart = bufLine.slice(column);
       
       if(!this.typingState.isTyping) {
-        this.typingState.isTyping = true;
-        this.typingState.startLineBuff = bufLine;
-        this.typingState.startCursorPos = this.cursor.getPosCopy();
-        this.typingState.startLine = line;
+        this.typingState = {
+          isTyping: true,
+          startLineBuff: bufLine,
+          startCursorPos: this.cursor.getPosCopy(),
+          startLine: line,
+        };
       }
 
       this.cursor.setPosX(posX - 1);
@@ -381,94 +390,6 @@ export default class Editor {
     });
   }
 
-  private setupClipboard(): void {
-    this.container.addEventListener("paste", e => {
-      // TODO: this event should work with selection and it has to save history too
-      e.preventDefault();
-
-      const pastedText = e.clipboardData?.getData("text/plain");
-      if(!pastedText) return;
-
-      const posX = this.cursor.getPosX();
-      const line = this.cursor.getPosY();
-      const bufLine = this.buffer[line];
-
-      const leftPart = bufLine.slice(0, posX);
-      const rightPart = bufLine.slice(posX);
-
-      const pastedLines = pastedText.split("\n");
-
-      const linesOps: LineOpType[] = [];
-      let newCursorPos: CursorPos;
-
-      if(pastedLines.length > 1) {
-        for(let i = 0; i < pastedLines.length; i++) {
-          let text = pastedLines[i];
-          if(i === 0) {
-            const updatedBuff = leftPart + text + "\n";
-            linesOps.push(updateLineOp(bufLine, updatedBuff));
-          } else if(i === pastedLines.length - 1) {
-            const addedBuff = text + rightPart;
-            linesOps.push(addLineOp(addedBuff));
-          } else {
-            const addedBuff = text + "\n";
-            linesOps.push(addLineOp(addedBuff));
-          }
-        }
-
-        const lastIndex = pastedLines.length - 1;
-        newCursorPos = {
-          x: pastedLines[lastIndex].length,
-          y: line + lastIndex,
-        };
-      } else {
-        const updatedBuff = leftPart + pastedText + rightPart;
-        linesOps.push(updateLineOp(bufLine, updatedBuff));
-        newCursorPos = {
-          x: posX + pastedText.length,
-          y: line,
-        };
-      }
-
-      this.saveTypedBuffer();
-      this.undoManager.saveAndExec({
-        linesOps,
-        topLine: line - 1,
-        oldCursorPos: this.cursor.getPosCopy(),
-        newCursorPos,
-      });
-    });
-
-    this.container.addEventListener("copy", e => {
-      e.preventDefault();
-      const selection = this.cursor.getSelection();
-      if(!this.cursor.isCollapsed() && selection) {
-        let text = "";
-
-        const { startPos, endPos } = selection;
-
-        if(startPos.y === endPos.y) {
-          const line = startPos.y;
-          text = this.buffer[line].slice(startPos.x, endPos.x);
-        } else {
-          for(let line = startPos.y; line <= endPos.y; line++) {
-            const bufLine = this.buffer[line];
-
-            if(line === startPos.y) {
-              text += bufLine.slice(startPos.x);
-            } else if(line === endPos.y) {
-              text += bufLine.slice(0, endPos.x);
-            } else {
-              text += bufLine;
-            }
-          }
-        }
-
-        e.clipboardData?.setData("text/plain", text);
-      }
-    });
-  }
-
   private setupMouse(): void {
     this.container.addEventListener("mousedown", e => {
       this.saveTypedBuffer();
@@ -573,5 +494,3 @@ export default class Editor {
     loop();
   }
 }
-
-(window as any).Cursor = Cursor;

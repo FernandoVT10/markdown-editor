@@ -1,7 +1,7 @@
-import Editor from "./editor";
+import Editor from ".";
 
-import { LineOpType } from "./lineOps";
-import { CursorPos } from "./cursor";
+import { LineOpType } from "../lineOps";
+import { CursorPos } from "../cursor";
 
 export type UndoItem = {
   linesOps: LineOpType[];

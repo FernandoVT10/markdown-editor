@@ -4,17 +4,17 @@ export enum LineOps {
   Remove,
 }
 
-type AddLineOp = {
+export type AddLineOp = {
   type: LineOps.Add;
   addedBuff: string;
 }
 
-type RemoveLineOp = {
+export type RemoveLineOp = {
   type: LineOps.Remove;
   removedBuff: string;
 }
 
-type UpdateLineOp = {
+export type UpdateLineOp = {
   type: LineOps.Update;
   preUpdateBuff: string;
   postUpdateBuff: string;

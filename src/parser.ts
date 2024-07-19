@@ -1,6 +1,4 @@
 import {
-  MDNode,
-  MDBlockNode,
   Text,
   Paragraph,
   Italic,
@@ -12,8 +10,8 @@ import {
   MDImage,
   Rule,
   MDList,
-} from "./tree";
-
+} from "./tree/nodes";
+import { MDNode, MDBlockNode } from "./tree/definitions";
 import { Types, Token, BlockTokens } from "./tokens";
 
 import Lexer from "./lexer";

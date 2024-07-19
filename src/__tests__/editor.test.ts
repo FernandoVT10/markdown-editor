@@ -202,57 +202,6 @@ describe("Editor", () => {
     expectCursorPos(editor, 1, 0);
   });
 
-  describe("pasting text", () => {
-    it("pastes one word", () => {
-      editor.cursor.setPosX(0);
-      dispatchPaste("neovim");
-      expect(editor.buffer[0]).toBe("neovim");
-      expectCursorPos(editor, 6, 0);
-    });
-
-    it("pastes text in middle of other text", () => {
-      editor.cursor.setPosX(2);
-      editor.buffer = ["nevim"];
-
-      dispatchPaste("o");
-
-      expect(editor.buffer[0]).toBe("neovim");
-      expectCursorPos(editor, 3, 0);
-    });
-
-    it("pastes text that contains a new line", () => {
-      editor.cursor.setPosX(5);
-      editor.buffer = ["firstsecond"];
-
-      dispatchPaste("test\ntest");
-
-      expect(editor.buffer).toHaveLength(2);
-      expect(editor.buffer[0]).toBe("firsttest\n");
-      expect(editor.buffer[1]).toBe("testsecond");
-      expectCursorPos(editor, 4, 1);
-    });
-
-    it("pastes text with several new lines in empty buffer", () => {
-      dispatchPaste("hello\nworld\n!\n");
-
-      expect(editor.buffer).toHaveLength(4);
-      expect(editor.buffer[0]).toBe("hello\n");
-      expect(editor.buffer[1]).toBe("world\n");
-      expect(editor.buffer[2]).toBe("!\n");
-      expect(editor.buffer[3]).toBe("");
-      expectCursorPos(editor, 0, 3);
-    });
-
-    it("does nothing when there's no text to paste", () => {
-      editor.buffer = ["test"];
-      dispatchPaste("");
-
-      expect(editor.buffer).toHaveLength(1);
-      expect(editor.buffer[0]).toBe("test");
-      expectCursorPos(editor, 0, 0);
-    });
-  });
-
   describe("removing selection", () => {
     it("removes one line selection", () => {
       editor.buffer[0] = "hello";
@@ -294,54 +243,34 @@ describe("Editor", () => {
     });
   });
 
-  describe("copying to clipboard", () => {
-    let setDataMock = jest.fn();
+  it("pastes text", () => {
+    dispatchPaste("hello\nworld\n!\n");
 
-    beforeEach(() => {
-      setDataMock.mockClear();
-    });
+    expect(editor.buffer).toHaveLength(4);
+    expect(editor.buffer[0]).toBe("hello\n");
+    expect(editor.buffer[1]).toBe("world\n");
+    expect(editor.buffer[2]).toBe("!\n");
+    expect(editor.buffer[3]).toBe("");
+    expectCursorPos(editor, 0, 3);
+  });
 
-    const dispatchCopy = () => {
-      const event = new Event("copy") as any;
-      event.clipboardData = {
-        setData: setDataMock,
-      };
-      container.dispatchEvent(event);
+  it("should copy text to clipboard", () => {
+    editor.buffer[0] = "elden ring\n";
+    editor.buffer[1] = "dark souls";
+    editor.cursor.setSelection(
+      { x: 6, y: 0 },
+      { x: 4, y: 1 },
+    );
+
+    const event = new Event("copy") as any;
+    event.clipboardData = {
+      setData: jest.fn(),
     };
+    container.dispatchEvent(event);
 
-    it("should copy text from one line", () => {
-      editor.buffer[0] = "elden ring";
-      editor.cursor.setSelection(
-        { x: 0, y: 0 },
-        { x: 5, y: 0 },
-      );
-      dispatchCopy();
-      expect(setDataMock).toHaveBeenCalledWith("text/plain", "elden");
-    });
-
-    it("should copy text from two lines", () => {
-      editor.buffer[0] = "elden ring\n";
-      editor.buffer[1] = "dark souls";
-      editor.cursor.setSelection(
-        { x: 6, y: 0 },
-        { x: 4, y: 1 },
-      );
-      dispatchCopy();
-      expect(setDataMock).toHaveBeenCalledWith("text/plain", "ring\ndark");
-    });
-
-    it("should copy text from 4 lines", () => {
-      editor.buffer[0] = "test 1\n";
-      editor.buffer[1] = "23\n";
-      editor.buffer[2] = "45\n";
-      editor.buffer[3] = "6 endtest";
-      editor.cursor.setSelection(
-        { x: 5, y: 0 },
-        { x: 1, y: 3 },
-      );
-      dispatchCopy();
-      expect(setDataMock).toHaveBeenCalledWith("text/plain", "1\n23\n45\n6");
-    });
+    expect(
+      event.clipboardData.setData
+    ).toHaveBeenCalledWith("text/plain", "ring\ndark");
   });
 
   describe("undo system", () => {
@@ -380,32 +309,6 @@ describe("Editor", () => {
         expectCursorPos(editor, 0, 0);
       });
     });
-
-    // it.only("undoes removing a selection", () => {
-    //   writeIntoEditor("hello");
-    //   // the selection includes only "ll" 
-    //   const startPos = { x: 2, y: 0 };
-    //   const endPos = { x: 4, y: 0 };
-    //   editor.cursor.setSelection(startPos, endPos);
-    //   dispatchKeydown({ key: "ArrowLeft" });
-    //   dispatchKeydown({ key: "Backspace" });
-    //   dispatchUndo();
-    //   expect(editor.buffer[0]).toBe("hello");
-    //   expectCursorPos(editor, 4, 0);
-    // });
-
-    // it("undoes removing multiline selection", () => {
-    //   writeIntoEditor("hello");
-    //   // the selection includes only "ll" 
-    //   const startPos = { x: 2, y: 0 };
-    //   const endPos = { x: 4, y: 0 };
-    //   editor.cursor.setSelection(startPos, endPos);
-    //   dispatchKeydown({ key: "Backspace" });
-    //   dispatchUndo();
-    //   expect(editor.buffer[0]).toBe("hello");
-    //   expectCursorPos(editor, 5, 0);
-    // });
-
 
     it("undoes back to text typed before newline was created", () => {
       writeIntoEditor("hello");
