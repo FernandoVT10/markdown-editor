@@ -2,6 +2,7 @@ import Cursor, { CursorPos } from "../cursor";
 import Tree from "../tree";
 import UndoManager from "./undoManager";
 import Clipboard from "./clipboard";
+import Debug from "./debug";
 
 import {
   LineOps,
@@ -47,11 +48,11 @@ export default class Editor {
     this.buffer.push("");
 
     Clipboard.setup(this);
+    Debug.setup(this.cursor);
 
     this.setupKeyboard();
     this.setupMouse();
     this.setupSelection();
-    this.setupDebug();
   }
 
   private addLine(line: number, text: string): void {
@@ -476,21 +477,5 @@ export default class Editor {
         this.selectionWasCollapsed = false;
       }
     });
-  }
-
-  private setupDebug(): void {
-    if(process.env.NODE_ENV === "test") return;
-
-    const cursorPosX = document.getElementById("cursor-pos-x") as HTMLElement;
-    const cursorPosY = document.getElementById("cursor-pos-y") as HTMLElement;
-
-    const loop = () => {
-      const { x, y }= this.cursor.getPos();
-      cursorPosX.innerText = x.toString();
-      cursorPosY.innerText = y.toString();
-      window.requestAnimationFrame(loop);
-    }
-
-    loop();
   }
 }
