@@ -48,7 +48,7 @@ export default class Editor {
     this.buffer.push("");
 
     Clipboard.setup(this);
-    Debug.setup(this.cursor);
+    Debug.setup(this);
 
     this.setupKeyboard();
     this.setupMouse();

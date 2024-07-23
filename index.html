@@ -11,7 +11,17 @@
       <span class="indicator">x: <span id="cursor-pos-x" class="number">0</span></span>
       <span class="indicator">y: <span id="cursor-pos-y" class="number">0</span></span>
     </div>
-    <div id="editor" contentEditable>
+    <div class="container">
+      <div class="menu">
+        <button class="button" id="toggle-token-preview">
+          Activate token preview
+        </button>
+      </div>
+
+      <div class="editor-container" id="editor-container">
+        <div id="editor" class="editor" contentEditable></div>
+        <div id="tokens-preview" class="tokens-preview"></div>
+      </div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

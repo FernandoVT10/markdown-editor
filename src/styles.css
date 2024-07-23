@@ -12,12 +12,86 @@ body {
   font-family: sans-serif;
 }
 
-#editor {
-  outline: 0;
+.container {
   max-width: 1200px;
-  border: solid 1px hsl(217, 50%, 70%);
   margin: 40px auto;
+}
+
+.container .menu {
+  padding: 10px 0;
+}
+
+.container .menu .button {
+  cursor: pointer;
+  background: transparent;
+  padding: 10px;
+  color: white;
+  font-weight: bold;
+  border: solid 1px #697886;
+  border-radius: 5px;
+  transition: .3s;
+}
+
+.container .menu .button:hover {
+  border-color: #79aaeb;
+  color: #79aaeb;
+}
+
+.container .menu .button.active {
+  color: #010101;
+  border-color: #79aaeb;
+  background: #79aaeb;
+}
+
+.editor-container {
+  display: flex;
+  width: 100%;
+  column-gap: 20px;
+}
+
+.editor-container.active .editor {
+  width: 70%;
+}
+
+.editor-container.active .tokens-preview {
+  display: block;
+}
+
+.editor {
+  outline: 0;
+  width: 100%;
+  border: solid 1px hsl(217, 50%, 70%);
   padding: 20px;
+  height: fit-content;
+}
+
+.tokens-preview {
+  display: none;
+  width: 30%;
+  border: solid 1px hsl(217, 50%, 70%);
+  padding: 10px;
+}
+
+.tokens-preview ul {
+  padding: 0;
+  margin: 0;
+  padding-left: 20px;
+  line-height: 1.5;
+  list-style: none;
+}
+
+.tokens-preview ul:nth-child(1) {
+  padding: 0;
+}
+
+.tokens-preview ul li .type {
+  color: #79aaeb;
+  font-weight: bold;
+  margin-right: 10px;
+}
+
+.tokens-preview ul li .range {
+  color: #697886;
 }
 
 h1, h2, h3, h4, h5, h6, p {
@@ -52,3 +126,4 @@ img {
 .cursor-pos .number {
   color: #79aaeb;
 }
+
