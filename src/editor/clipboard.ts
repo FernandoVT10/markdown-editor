@@ -1,4 +1,4 @@
-import Editor, { Buffer } from ".";
+import Editor, { MDBuffer } from ".";
 import { CursorSelection } from "../cursor";
 import { CursorPos } from "../cursor";
 import {
@@ -7,7 +7,7 @@ import {
   updateLineOp
 } from "../lineOps";
 
-export function getSelectedText(buffer: Buffer, selection: CursorSelection): string {
+export function getSelectedText(buffer: MDBuffer, selection: CursorSelection): string {
   let text = "";
 
   const { startPos, endPos } = selection;
@@ -32,7 +32,7 @@ export function getSelectedText(buffer: Buffer, selection: CursorSelection): str
   return text;
 }
 
-export function getPastedLinesOps(pastedLines: string[], cursorPos: CursorPos, buffer: Buffer): LineOpType[] {
+export function getPastedLinesOps(pastedLines: string[], cursorPos: CursorPos, buffer: MDBuffer): LineOpType[] {
   const posX = cursorPos.x;
   const line = cursorPos.y;
   const bufLine = buffer[line];

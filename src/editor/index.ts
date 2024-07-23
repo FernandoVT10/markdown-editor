@@ -21,11 +21,11 @@ type TypingState = {
   startLine?: number;
 }
 
-export type Buffer = string[];
+export type MDBuffer = string[];
 export type Container = HTMLElement;
 
 export default class Editor {
-  public buffer: Buffer = [];
+  public buffer: MDBuffer = [];
   public cursor: Cursor;
   public container: Container;
   private nodesTree: Tree;

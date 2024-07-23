@@ -1,8 +1,8 @@
-import Editor, { Buffer } from ".";
+import Editor, { MDBuffer } from ".";
 import Lexer from "../lexer";
 import { Token, BlockTokens, Types } from "../tokens";
 
-function areBuffersEq(b1: Buffer, b2: Buffer): boolean {
+function areBuffersEq(b1: MDBuffer, b2: MDBuffer): boolean {
   if(b1.length !== b2.length) return false;
 
   for(let i = 0; i < b1.length; i++) {
@@ -51,7 +51,7 @@ function updateTokensPreview(tokens: Token[]): void {
   tokensPreview.appendChild(getTokensList(tokens));
 }
 
-function setupTokensPreview(editorBuffer: Buffer): () => void {
+function setupTokensPreview(editorBuffer: MDBuffer): () => void {
   let previousBuffer = [...editorBuffer];
   let previewTokens = false;
 

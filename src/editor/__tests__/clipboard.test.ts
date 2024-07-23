@@ -1,13 +1,13 @@
 import { getSelectedText, getPastedLinesOps } from "../clipboard";
 
-import { Buffer } from "..";
+import { MDBuffer } from "..";
 import { CursorSelection, CursorPos } from "../../cursor";
 import { LineOps, UpdateLineOp, AddLineOp } from "../../lineOps";
 
 describe("editor/clipboard", () => {
   describe("getSelectedText()", () => {
     it("returns selected text from single-line selection", () => {
-      const buffer: Buffer = ["test"];
+      const buffer: MDBuffer = ["test"];
       const selection: CursorSelection = {
         startPos: { x: 1, y: 0 },
         endPos: { x: 3, y: 0 },
@@ -16,7 +16,7 @@ describe("editor/clipboard", () => {
     });
 
     it("returns selected text from two-line selection", () => {
-      const buffer: Buffer = ["test\n", "test2"];
+      const buffer: MDBuffer = ["test\n", "test2"];
       const selection: CursorSelection = {
         startPos: { x: 3, y: 0 },
         endPos: { x: 5, y: 1 },
@@ -26,7 +26,7 @@ describe("editor/clipboard", () => {
 
 
     it("returns selected text from multi-line selection", () => {
-      const buffer: Buffer = [
+      const buffer: MDBuffer = [
         "Mozart\n",
         "Bethoveen\n",
         "Bach\n",
@@ -44,7 +44,7 @@ describe("editor/clipboard", () => {
     it("returns one line op", () => {
       const pastedLines = ["llo"];
       const cursorPos: CursorPos = { x: 2, y: 0 };
-      const buffer: Buffer = ["he"];
+      const buffer: MDBuffer = ["he"];
 
       const linesOps = getPastedLinesOps(pastedLines, cursorPos, buffer)
       expect(linesOps).toHaveLength(1);
@@ -57,7 +57,7 @@ describe("editor/clipboard", () => {
     it("returns two line ops", () => {
       const pastedLines = ["1", "2"];
       const cursorPos: CursorPos = { x: 1, y: 0 };
-      const buffer: Buffer = ["LL"];
+      const buffer: MDBuffer = ["LL"];
 
       const linesOps = getPastedLinesOps(pastedLines, cursorPos, buffer);
       expect(linesOps).toHaveLength(2);
@@ -76,7 +76,7 @@ describe("editor/clipboard", () => {
     it("returns 3 line ops", () => {
       const pastedLines = ["1", "2", "3"];
       const cursorPos: CursorPos = { x: 2, y: 0 };
-      const buffer: Buffer = ["LL\n", "LL"];
+      const buffer: MDBuffer = ["LL\n", "LL"];
 
       const linesOps = getPastedLinesOps(pastedLines, cursorPos, buffer);
       expect(linesOps).toHaveLength(3);

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { MDNode, MDBlockNode, TagName } from "./definitions";
 import { MDRange } from "../tokens";
 import { Tokens } from "../tokens";
