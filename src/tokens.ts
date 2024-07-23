@@ -14,37 +14,42 @@ export enum Types {
 
 export type MDRange = [number, number];
 
+type TokenRange = {
+  start: { line: number, col: number };
+  end: { line: number, col: number };
+};
+
 export namespace Tokens {
   export interface Text {
     type: Types.Text;
-    range: MDRange;
+    range: TokenRange;
     text: string;
   }
 
   export interface Bold {
     type: Types.Bold;
-    range: MDRange;
+    range: TokenRange;
     tokens: Token[];
     wasClosed: boolean;
   }
 
   export interface Italic {
     type: Types.Italic;
-    range: MDRange;
+    range: TokenRange;
     tokens: Token[];
     wasClosed: boolean;
   }
 
   export interface Code {
     type: Types.Code;
-    range: MDRange;
+    range: TokenRange;
     content: string;
     wasClosed: boolean;
   }
 
   export interface Header {
     type: Types.Header;
-    range: MDRange;
+    range: TokenRange;
     tokens: Token[];
     level: number;
     hasAfterSpace: boolean;
@@ -52,18 +57,18 @@ export namespace Tokens {
 
   export interface Paragraph {
     type: Types.Paragraph;
-    range: MDRange;
+    range: TokenRange;
     tokens: Token[];
   }
 
   export interface NewLine {
     type: Types.NewLine;
-    range: MDRange;
+    range: TokenRange;
   }
 
   export interface Link {
     type: Types.Link;
-    range: MDRange;
+    range: TokenRange;
     text: string;
     dest: string | null;
     raw: string;
@@ -72,7 +77,7 @@ export namespace Tokens {
 
   export interface Image {
     type: Types.Image;
-    range: MDRange;
+    range: TokenRange;
     altText: string;
     url: string | null;
     raw: string;
@@ -81,13 +86,13 @@ export namespace Tokens {
 
   export interface Rule {
     type: Types.Rule;
-    range: MDRange;
+    range: TokenRange;
     raw: string;
   }
 
   export interface List {
     type: Types.List;
-    range: MDRange;
+    range: TokenRange;
     marker: string;
     tokens: Token[];
   }

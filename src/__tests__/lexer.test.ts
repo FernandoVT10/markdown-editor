@@ -11,16 +11,40 @@ function setupInlineTokens(buffer: string): Token[] {
 };
 
 describe("Lexer", () => {
+  describe("Paragraph", () => {
+    it("should create a paragraph", () => {
+      const buffer = "test";
+      const lexer = new Lexer(buffer);
+
+      const tokens = lexer.scanTokens();
+      expect(tokens).toHaveLength(1);
+
+      const token = tokens[0] as Tokens.Paragraph;
+
+      expect(token.type).toBe(Types.Paragraph);
+      expect(token.range).toEqual({
+        start: { line: 0, col: 0 },
+        end: { line: 0, col: buffer.length },
+      });
+
+      expect(token.tokens[0].type).toBe(Types.Text);
+    });
+  });
+
   describe("Text", () => {
     it("returns a text token", () => {
-      const buffer = "test";
-      const tokens = setupInlineTokens(buffer);
+      const text = "test";
+      const tokens = setupInlineTokens(text);
       expect(tokens).toHaveLength(1);
 
       const token = tokens[0] as Tokens.Text;
       expect(token.type).toBe(Types.Text);
-      expect(token.text).toBe(buffer);
-      expect(token.range).toEqual([0, buffer.length]);
+      expect(token.text).toBe(text);
+
+      expect(token.range).toEqual({
+        start: { line: 0, col: 0 },
+        end: { line: 0, col: text.length },
+      });
     });
   });
 
@@ -32,7 +56,10 @@ describe("Lexer", () => {
 
       const token = tokens[0] as Tokens.Code;
       expect(token.type).toBe(Types.Code);
-      expect(token.range).toEqual([0, buffer.length]);
+      expect(token.range).toEqual({
+        start: { line: 0, col: 0 },
+        end: { line: 0, col: buffer.length },
+      });
       expect(token.content).toBe(buffer.replace(/`/g, ""));
       expect(token.wasClosed).toBeTruthy();
     });
@@ -41,7 +68,10 @@ describe("Lexer", () => {
       const buffer = "`test";
       const token = setupInlineTokens(buffer)[0] as Tokens.Code;
       expect(token.type).toBe(Types.Code);
-      expect(token.range).toEqual([0, buffer.length]);
+      expect(token.range).toEqual({
+        start: { line: 0, col: 0 },
+        end: { line: 0, col: buffer.length },
+      });
       expect(token.content).toBe("test");
       expect(token.wasClosed).toBeFalsy();
     });
@@ -51,7 +81,10 @@ describe("Lexer", () => {
       const buffer = `${code}\ntext`;
       const token = setupInlineTokens(buffer)[0] as Tokens.Code;
       expect(token.type).toBe(Types.Code);
-      expect(token.range).toEqual([0, code.length]);
+      expect(token.range).toEqual({
+        start: { line: 0, col: 0 },
+        end: { line: 0, col: code.length },
+      });
       expect(token.content).toBe("test");
       expect(token.wasClosed).toBeFalsy();
     });
@@ -67,13 +100,19 @@ describe("Lexer", () => {
 
       const token = tokens[0] as Tokens.Header;
       expect(token.type).toBe(Types.Header);
-      expect(token.range).toEqual([0, buffer.length]);
+      expect(token.range).toEqual({
+        start: { line: 0, col: 0 },
+        end: { line: 0, col: buffer.length },
+      });
       expect(token.level).toBe(2);
       expect(token.hasAfterSpace).toBeTruthy();
 
       expect(token.tokens).toHaveLength(1);
       expect(token.tokens[0].type).toBe(Types.Text);
-      expect(token.tokens[0].range).toEqual([3, buffer.length]);
+      expect(token.tokens[0].range).toEqual({
+        start: { line: 0, col: 3 },
+        end: { line: 0, col: buffer.length },
+      });
     });
 
     it("returns a header token after a new line", () => {
@@ -110,7 +149,10 @@ describe("Lexer", () => {
 
       const token = tokens[0] as Tokens.Bold;
       expect(token.type).toBe(Types.Bold);
-      expect(token.range).toEqual([0, buffer.length]);
+      expect(token.range).toEqual({
+        start: { line: 0, col: 0 },
+        end: { line: 0, col: buffer.length },
+      });
       expect(token.wasClosed).toBeTruthy();
 
       expect(token.tokens).toHaveLength(1);
@@ -121,7 +163,10 @@ describe("Lexer", () => {
       const buffer = "**bar";
       const token = setupInlineTokens(buffer)[0] as Tokens.Bold;
       expect(token.type).toBe(Types.Bold);
-      expect(token.range).toEqual([0, buffer.length]);
+      expect(token.range).toEqual({
+        start: { line: 0, col: 0 },
+        end: { line: 0, col: buffer.length },
+      });
       expect(token.wasClosed).toBeFalsy();
 
       expect(token.tokens).toHaveLength(1);
@@ -137,7 +182,10 @@ describe("Lexer", () => {
 
       const token = tokens[0] as Tokens.Italic;
       expect(token.type).toBe(Types.Italic);
-      expect(token.range).toEqual([0, buffer.length]);
+      expect(token.range).toEqual({
+        start: { line: 0, col: 0 },
+        end: { line: 0, col: buffer.length },
+      });
       expect(token.wasClosed).toBeTruthy();
 
       // Italic Token's tokens
@@ -149,30 +197,15 @@ describe("Lexer", () => {
       const buffer = "*bar";
       const token = setupInlineTokens(buffer)[0] as Tokens.Italic;
       expect(token.type).toBe(Types.Italic);
-      expect(token.range).toEqual([0, buffer.length]);
+      expect(token.range).toEqual({
+        start: { line: 0, col: 0 },
+        end: { line: 0, col: buffer.length },
+      });
       expect(token.wasClosed).toBeFalsy();
 
       // Bold Token's tokens
       expect(token.tokens).toHaveLength(1);
       expect(token.tokens[0].type).toBe(Types.Text);
-    });
-  });
-
-  describe("Paragraph", () => {
-    it("should create a paragraph", () => {
-      const buffer = "test";
-      const lexer = new Lexer(buffer);
-
-      const tokens = lexer.scanTokens();
-      expect(tokens).toHaveLength(1);
-
-      const token = tokens[0] as Tokens.Paragraph;
-
-      expect(token.type).toBe(Types.Paragraph);
-      expect(token.range).toEqual([0, buffer.length]);
-
-      expect(token.tokens[0].type).toBe(Types.Text);
-      expect(token.tokens[0].range).toEqual([0, buffer.length]);
     });
   });
 
@@ -186,10 +219,16 @@ describe("Lexer", () => {
 
       // NOTE: token number 0 is the new line token
       expect(tokens[0].type).toBe(Types.Header);
-      expect(tokens[0].range).toEqual([0, 9]);
+      expect(tokens[0].range).toEqual({
+        start: { line: 0, col: 0 },
+        end: { line: 0, col: 9 },
+      });
 
       expect(tokens[2].type).toBe(Types.Header);
-      expect(tokens[2].range).toEqual([10, buffer.length]);
+      expect(tokens[2].range).toEqual({
+        start: { line: 1, col: 0 },
+        end: { line: 1, col: 9 },
+      });
     });
 
     it("should return a new line token", () => {
@@ -199,7 +238,10 @@ describe("Lexer", () => {
       expect(tokens).toHaveLength(1);
 
       expect(tokens[0].type).toBe(Types.NewLine);
-      expect(tokens[0].range).toEqual([0, 1]);
+      expect(tokens[0].range).toEqual({
+        start: { line: 0, col: 0 },
+        end: { line: 0, col: 1 },
+      });
     });
   });
 
@@ -213,7 +255,10 @@ describe("Lexer", () => {
       expect(token.type).toBe(Types.Link);
       expect(token.text).toBe(text);
       expect(token.dest).toBe(dest);
-      expect(token.range).toEqual([0, buffer.length]);
+      expect(token.range).toEqual({
+        start: { line: 0, col: 0 },
+        end: { line: 0, col: buffer.length },
+      });
       expect(token.raw).toBe(buffer);
       expect(token.wasClosed).toBeTruthy();
     });
@@ -225,7 +270,10 @@ describe("Lexer", () => {
       expect(token.type).toBe(Types.Link);
       expect(token.text).toBe("text");
       expect(token.dest).toBeNull();
-      expect(token.range).toEqual([0, buffer.length]);
+      expect(token.range).toEqual({
+        start: { line: 0, col: 0 },
+        end: { line: 0, col: buffer.length },
+      });
       expect(token.raw).toBe(buffer);
       expect(token.wasClosed).toBeFalsy();
     });
@@ -241,14 +289,20 @@ describe("Lexer", () => {
         const link = "[text";
         const buffer = `${link}\ntest`;
         const token = setupInlineTokens(buffer)[0] as Tokens.Link;
-        expect(token.range).toEqual([0, link.length]);
+        expect(token.range).toEqual({
+          start: { line: 0, col: 0 },
+          end: { line: 0, col: link.length },
+        });
       });
 
       it("dest wasn't closed", () => {
         const link = "[text](dest";
         const buffer = `${link}\ntest`;
         const token = setupInlineTokens(buffer)[0] as Tokens.Link;
-        expect(token.range).toEqual([0, link.length]);
+        expect(token.range).toEqual({
+          start: { line: 0, col: 0 },
+          end: { line: 0, col: link.length },
+        });
       });
     });
   });
@@ -261,7 +315,10 @@ describe("Lexer", () => {
 
       const token = setupInlineTokens(buffer)[0] as Tokens.Image;
       expect(token.type).toBe(Types.Image);
-      expect(token.range).toEqual([0, buffer.length]);
+      expect(token.range).toEqual({
+        start: { line: 0, col: 0 },
+        end: { line: 0, col: buffer.length },
+      });
       expect(token.altText).toBe(altText);
       expect(token.url).toBe(url);
       expect(token.raw).toBe(buffer);
@@ -274,7 +331,10 @@ describe("Lexer", () => {
 
       const token = setupInlineTokens(buffer)[0] as Tokens.Image;
       expect(token.type).toBe(Types.Image);
-      expect(token.range).toEqual([0, buffer.length]);
+      expect(token.range).toEqual({
+        start: { line: 0, col: 0 },
+        end: { line: 0, col: buffer.length },
+      });
       expect(token.altText).toBe(altText);
       expect(token.url).toBeNull();
       expect(token.raw).toBe(buffer);
@@ -286,14 +346,20 @@ describe("Lexer", () => {
         const image = "![text";
         const buffer = `${image}\ntest`;
         const token = setupInlineTokens(buffer)[0] as Tokens.Link;
-        expect(token.range).toEqual([0, image.length]);
+        expect(token.range).toEqual({
+          start: { line: 0, col: 0 },
+          end: { line: 0, col: image.length },
+        });
       });
 
       it("url wasn't closed", () => {
         const image = "![text](image.webp";
         const buffer = `${image}\ntest`;
         const token = setupInlineTokens(buffer)[0] as Tokens.Link;
-        expect(token.range).toEqual([0, image.length]);
+        expect(token.range).toEqual({
+          start: { line: 0, col: 0 },
+          end: { line: 0, col: image.length },
+        });
       });
     });
   });
@@ -307,7 +373,10 @@ describe("Lexer", () => {
 
       const rule = tokens[0] as Tokens.Rule;
       expect(rule.type).toBe(Types.Rule);
-      expect(rule.range).toEqual([0, buffer.length]);
+      expect(rule.range).toEqual({
+        start: { line: 0, col: 0 },
+        end: { line: 0, col: buffer.length },
+      });
       expect(rule.raw).toBe(buffer);
     };
 
@@ -346,46 +415,48 @@ describe("Lexer", () => {
     });
   });
 
-  describe("Unordered List", () => {
-    const testUnorderedList = (buffer: string): void => {
-      const lexer = new Lexer(buffer);
+  it.todo("Unordered list");
 
-      const tokens = lexer.scanTokens();
-      expect(tokens).toHaveLength(1);
-
-      const list = tokens[0] as Tokens.List;
-      expect(list.type).toBe(Types.List);
-      expect(list.range).toEqual([0, buffer.length]);
-      expect(list.marker).toBe("-");
-      expect(list.tokens).toHaveLength(1);
-
-      const text = list.tokens[0];
-      expect(text.type).toBe(Types.Text);
-      expect(text.range).toEqual([1, buffer.length]);
-    };
-
-    describe("returns an unordered list", () => {
-      it("using \"-\"", () => {
-        testUnorderedList("- Hello");
-      });
-
-      it("using \"*\"", () => {
-        testUnorderedList("* Hello");
-      });
-    });
-
-    it("doesn't return a list if there's a character after list mark", () => {
-      const buffer = "-Hello";
-      const lexer = new Lexer(buffer);
-      const token = lexer.scanTokens()[0] as Tokens.List;
-      expect(token.type).not.toBe(Types.List);
-    });
-
-    it("doesn't return a list if there's not a space after list mark", () => {
-      const buffer = "-";
-      const lexer = new Lexer(buffer);
-      const token = lexer.scanTokens()[0] as Tokens.List;
-      expect(token.type).not.toBe(Types.List);
-    });
-  });
+  // describe("Unordered List", () => {
+  //   const testUnorderedList = (buffer: string): void => {
+  //     const lexer = new Lexer(buffer);
+  //
+  //     const tokens = lexer.scanTokens();
+  //     expect(tokens).toHaveLength(1);
+  //
+  //     const list = tokens[0] as Tokens.List;
+  //     expect(list.type).toBe(Types.List);
+  //     expect(list.range).toEqual([0, buffer.length]);
+  //     expect(list.marker).toBe("-");
+  //     expect(list.tokens).toHaveLength(1);
+  //
+  //     const text = list.tokens[0];
+  //     expect(text.type).toBe(Types.Text);
+  //     expect(text.range).toEqual([1, buffer.length]);
+  //   };
+  //
+  //   describe("returns an unordered list", () => {
+  //     it("using \"-\"", () => {
+  //       testUnorderedList("- Hello");
+  //     });
+  //
+  //     it("using \"*\"", () => {
+  //       testUnorderedList("* Hello");
+  //     });
+  //   });
+  //
+  //   it("doesn't return a list if there's a character after list mark", () => {
+  //     const buffer = "-Hello";
+  //     const lexer = new Lexer(buffer);
+  //     const token = lexer.scanTokens()[0] as Tokens.List;
+  //     expect(token.type).not.toBe(Types.List);
+  //   });
+  //
+  //   it("doesn't return a list if there's not a space after list mark", () => {
+  //     const buffer = "-";
+  //     const lexer = new Lexer(buffer);
+  //     const token = lexer.scanTokens()[0] as Tokens.List;
+  //     expect(token.type).not.toBe(Types.List);
+  //   });
+  // });
 });

@@ -1,13 +1,13 @@
 import { Token, Types } from "./tokens";
 
-const ZERO_CHAR_CODE = "0".charCodeAt(0);
-const NINE_CHAR_CODE = "9".charCodeAt(0);
-
 const HEADER_MAX_LEVEL = 6;
 
 export default class Lexer {
   private buffer: string;
   private bufferCursor = 0;
+
+  private curLine = 0;
+  private curCol = 0;
 
   constructor(buffer: string) {
     this.buffer = buffer;
@@ -18,14 +18,17 @@ export default class Lexer {
   }
 
   private advance(n = 1): void {
+    this.curCol += n;
     this.bufferCursor += n;
   }
 
   private rewind(): void {
+    this.curCol--;
     this.bufferCursor--;
   }
 
   private advanceWithChar(): string {
+    this.curCol++;
     return this.buffer.charAt(this.bufferCursor++);
   }
 
@@ -49,7 +52,7 @@ export default class Lexer {
     while(!this.isBufferEnd() && !this.match("\n") && cond(c = this.advanceWithChar()));
   }
 
-  private processCode(startPos: number, tokens: Token[]): void {
+  private processCode(startCol: number, tokens: Token[]): void {
     let content = "";
     let wasClosed = false;
 
@@ -66,13 +69,16 @@ export default class Lexer {
 
     tokens.push({
       type: Types.Code,
-      range: [startPos, this.bufferCursor],
+      range: {
+        start: { line: this.curLine, col: startCol },
+        end: { line: this.curLine, col: this.curCol },
+      },
       content,
       wasClosed,
     });
   }
 
-  private processBold(startPos: number, tokens: Token[]): void {
+  private processBold(startCol: number, tokens: Token[]): void {
     let wasClosed = false;
     const inlineTokens = this.inlineTokens((c, nextC) => {
       const isBold = c === "*" && nextC === "*";
@@ -85,13 +91,16 @@ export default class Lexer {
 
     tokens.push({
       type: Types.Bold,
-      range: [startPos, this.bufferCursor],
+      range: {
+        start: { line: this.curLine, col: startCol },
+        end: { line: this.curLine, col: this.curCol },
+      },
       tokens: inlineTokens,
       wasClosed,
     });
   }
 
-  private processItalic(startPos: number, tokens: Token[]): void {
+  private processItalic(startCol: number, tokens: Token[]): void {
     let wasClosed = false;
     const inlineTokens = this.inlineTokens(c => {
       const isItalic = c === "*";
@@ -101,28 +110,34 @@ export default class Lexer {
 
     tokens.push({
       type: Types.Italic,
-      range: [startPos, this.bufferCursor],
+      range: {
+        start: { line: this.curLine, col: startCol },
+        end: { line: this.curLine, col: this.curCol },
+      },
       tokens: inlineTokens,
       wasClosed,
     });
   }
 
-  private processText(c: string, startPos: number, tokens: Token[]): void {
+  private processText(c: string, line: number, startCol: number, tokens: Token[]): void {
     const prevToken = tokens[tokens.length - 1];
 
     if(prevToken && prevToken.type === Types.Text) {
-      prevToken.range[1] = startPos + 1;
+      prevToken.range.end.col = startCol + 1;
       prevToken.text += c;
     } else {
       tokens.push({
         type: Types.Text,
         text: c,
-        range: [startPos, startPos + 1]
+        range: {
+          start: { line, col: startCol },
+          end: { line, col: startCol + 1 },
+        },
       });
     }
   }
 
-  private processHeader(startPos: number, tokens: Token[]): void {
+  private processHeader(tokens: Token[]): void {
     let level = 0;
 
     while(this.peekChar(level) === "#") {
@@ -137,28 +152,34 @@ export default class Lexer {
 
       tokens.push({
         type: Types.Header,
-        range: [startPos, this.bufferCursor],
+        range: {
+          start: { line: this.curLine, col: 0 },
+          end: { line: this.curLine, col: this.curCol },
+        },
         tokens: inlineTokens,
         level: level + 1,
         hasAfterSpace: finalC === " ",
       });
     } else {
       // process this as text
-      this.processParagraph(startPos, tokens);
+      this.processParagraph(tokens);
     }
   }
 
-  private processParagraph(startPos: number, tokens: Token[]): void {
+  private processParagraph(tokens: Token[]): void {
     this.rewind();
     const inlineTokens = this.inlineTokens();
     tokens.push({
       type: Types.Paragraph,
-      range: [startPos, this.bufferCursor],
+      range: {
+        start: { line: this.curLine, col: 0 },
+        end: { line: this.curLine, col: this.curCol },
+      },
       tokens: inlineTokens,
     });
   }
 
-  private processLink(startPos: number, tokens: Token[]): void {
+  private processLink(startCol: number, tokens: Token[]): void {
     let text = "", raw = "[", dest = "";
     let wasClosed = false;
 
@@ -191,7 +212,10 @@ export default class Lexer {
 
     tokens.push({
       type: Types.Link,
-      range: [startPos, this.bufferCursor],
+      range: {
+        start: { line: this.curLine, col: startCol },
+        end: { line: this.curLine, col: this.curCol },
+      },
       text,
       dest: dest.length > 0 ? dest : null,
       raw,
@@ -199,7 +223,7 @@ export default class Lexer {
     });
   }
 
-  private processImage(startPos: number, tokens: Token[]): void {
+  private processImage(startCol: number, tokens: Token[]): void {
     let altText = "", url = "", raw = "![";
     let wasClosed = false;
 
@@ -231,7 +255,10 @@ export default class Lexer {
 
     tokens.push({
       type: Types.Image,
-      range: [startPos, this.bufferCursor],
+      range: {
+        start: { line: this.curLine, col: startCol },
+        end: { line: this.curLine, col: this.curCol },
+      },
       altText,
       url: url.length > 0 ? url : null,
       raw,
@@ -239,7 +266,7 @@ export default class Lexer {
     });
   }
 
-  private processRule(firstChar: string, startPos: number, tokens: Token[]): boolean {
+  private processRule(firstChar: string, startCol: number, tokens: Token[]): boolean {
     let peekCursor = 0;
     let repeatedChars = 1;
     let rawText = firstChar;
@@ -256,7 +283,10 @@ export default class Lexer {
 
       tokens.push({
         type: Types.Rule,
-        range: [startPos, this.bufferCursor],
+        range: {
+          start: { line: this.curLine, col: startCol },
+          end: { line: this.curLine, col: this.curCol },
+        },
         raw: rawText,
       });
 
@@ -266,31 +296,12 @@ export default class Lexer {
     return false;
   }
 
-  private isOrderedList(char: string): boolean {
-    const code = char.charCodeAt(0);
-
-    return code >= ZERO_CHAR_CODE
-      && code <= NINE_CHAR_CODE
-      && this.peekChar() === "."
-      && this.peekChar(1) === " ";
-  }
-
-  private processList(marker: string, startPos: number, tokens: Token[]): void {
-    const inlineTokens = this.inlineTokens();
-
-    tokens.push({
-      type: Types.List,
-      range: [startPos, this.bufferCursor],
-      tokens: inlineTokens,
-      marker,
-    });
-  }
-
   private inlineTokens(predicate?: (c: string, nextC: string) => boolean): Token[] {
     const tokens: Token[] = [];
 
     while(!this.isBufferEnd() && !this.match("\n")) {
-      const startPos = this.bufferCursor;
+      const startCol = this.curCol;
+
       const c = this.advanceWithChar();
       const nextC = this.peekChar();
 
@@ -298,27 +309,27 @@ export default class Lexer {
 
       switch(c) {
         case "`":
-          this.processCode(startPos, tokens);
+          this.processCode(startCol, tokens);
           break;
         case "*":
           if(this.advanceIfMatch("*")) {
-            this.processBold(startPos, tokens);
+            this.processBold(startCol, tokens);
           } else {
-            this.processItalic(startPos, tokens);
+            this.processItalic(startCol, tokens);
           }
           break;
         case "[":
-          this.processLink(startPos, tokens);
+          this.processLink(startCol, tokens);
           break;
         case "!":
           if(this.advanceIfMatch("[")) {
-            this.processImage(startPos, tokens);
+            this.processImage(startCol, tokens);
           } else {
-            this.processText(c, startPos, tokens);
+            this.processText(c, this.curLine, startCol, tokens);
           }
           break;
         default:
-          this.processText(c, startPos, tokens);
+          this.processText(c, this.curLine, startCol, tokens);
           break;
       }
     }
@@ -330,39 +341,32 @@ export default class Lexer {
     const tokens: Token[] = [];
 
     while(!this.isBufferEnd()) {
-      const startPos = this.bufferCursor;
+      const startCol = this.curCol;
       const c = this.advanceWithChar();
-
-      if(this.isOrderedList(c)) {
-        console.log("LIST!");
-      }
 
       switch(c) {
         case "#": 
-          this.processHeader(startPos, tokens);
+          this.processHeader(tokens);
           break;
         case "\n":
           tokens.push({
             type: Types.NewLine,
-            range: [startPos, startPos + 1],
+            range: {
+              start: { line: this.curLine, col: startCol },
+              end: { line: this.curLine, col: startCol + 1 },
+            },
           });
+          this.curLine++;
+          this.curCol = 0;
           break;
         case "_":
-          if(!this.processRule(c, startPos, tokens)) {
-            this.processParagraph(startPos, tokens);
-          }
-          break;
         case "-":
         case "*":
-          if(!this.processRule(c, startPos, tokens)) {
-            if(this.match(" ")) {
-              this.processList("-", startPos, tokens);
-            } else {
-              this.processParagraph(startPos, tokens);
-            }
+          if(!this.processRule(c, startCol, tokens)) {
+            this.processParagraph(tokens);
           }
           break;
-        default: this.processParagraph(startPos, tokens);
+        default: this.processParagraph(tokens);
       }
     }
 
