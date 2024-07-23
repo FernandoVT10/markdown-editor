@@ -137,7 +137,7 @@ export default class Lexer {
     }
   }
 
-  private processHeader(tokens: Token[]): void {
+  private processHeader(tokens: Token[]): boolean {
     let level = 0;
 
     while(this.peekChar(level) === "#") {
@@ -160,9 +160,10 @@ export default class Lexer {
         level: level + 1,
         hasAfterSpace: finalC === " ",
       });
+
+      return true;
     } else {
-      // process this as text
-      this.processParagraph(tokens);
+      return false;
     }
   }
 
@@ -308,29 +309,29 @@ export default class Lexer {
       if(predicate && !predicate(c, nextC)) break;
 
       switch(c) {
-        case "`":
+        case "`": {
           this.processCode(startCol, tokens);
-          break;
-        case "*":
+        } break;
+        case "*": {
           if(this.advanceIfMatch("*")) {
             this.processBold(startCol, tokens);
           } else {
             this.processItalic(startCol, tokens);
           }
-          break;
-        case "[":
+        } break;
+        case "[": {
           this.processLink(startCol, tokens);
-          break;
-        case "!":
+        } break;
+        case "!": {
           if(this.advanceIfMatch("[")) {
             this.processImage(startCol, tokens);
           } else {
             this.processText(c, this.curLine, startCol, tokens);
           }
-          break;
-        default:
+        } break;
+        default: {
           this.processText(c, this.curLine, startCol, tokens);
-          break;
+        }
       }
     }
 
@@ -345,10 +346,12 @@ export default class Lexer {
       const c = this.advanceWithChar();
 
       switch(c) {
-        case "#": 
-          this.processHeader(tokens);
-          break;
-        case "\n":
+        case "#": {
+          if(!this.processHeader(tokens)) {
+            this.processParagraph(tokens);
+          }
+        } break;
+        case "\n": {
           tokens.push({
             type: Types.NewLine,
             range: {
@@ -358,14 +361,14 @@ export default class Lexer {
           });
           this.curLine++;
           this.curCol = 0;
-          break;
+        } break;
         case "_":
         case "-":
-        case "*":
+        case "*": {
           if(!this.processRule(c, startCol, tokens)) {
             this.processParagraph(tokens);
           }
-          break;
+        } break;
         default: this.processParagraph(tokens);
       }
     }
