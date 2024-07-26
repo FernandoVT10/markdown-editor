@@ -1,77 +1,48 @@
-import { MDRange } from "../tokens";
+import { MDRange, TokenRange, Token } from "../tokens";
 import Cursor, { CursorPos } from "../cursor";
 import {
-  isPointInRange,
-  isLineRangeInSel,
   appendNodesToEl,
+  isCursorPosInRange,
 } from "../utils";
 import { Trait } from "./traits";
 
 export type TagName = keyof HTMLElementTagNameMap;
 
 export abstract class MDNode {
-  protected range: MDRange;
+  protected token: Token;
   protected htmlEl: HTMLElement;
 
-  protected line = 0;
-
-  constructor(range: MDRange, tagName: TagName) {
-    this.range = range;
+  constructor(token: Token, tagName: TagName) {
+    this.token = token;
     this.htmlEl = document.createElement(tagName);
   }
 
-  protected getRange(): MDRange {
-    return this.range;
+  private getRange(): TokenRange {
+    return this.token.range;
   }
 
-  protected getStartPos(): number {
-    return this.range[0];
-  }
-
-  protected getEndPos(): number {
-    return this.range[1];
-  }
-
-  protected isInCursorRange(cursor: Cursor): boolean {
+  public isInCursorRange(cursor: Cursor): boolean {
     if(cursor.isCollapsed()) {
-      const { x, y } = cursor.getPos();
-      return isPointInRange(x, this.getRange()) && this.line === y;
+      return isCursorPosInRange(cursor.getPos(), this.getRange());
     } else {
-      const selection = cursor.getSelection();
-
-      if(selection) {
-        return isLineRangeInSel({
-          line: this.line,
-          range: this.getRange(),
-        }, selection);
-      }
+      // TODO: write this part...
+      console.error("Cursor selection is not supported yet.");
+      return false;
     }
-
-    return false;
   }
 
   public getHTMLEl(): HTMLElement {
     return this.htmlEl;
   }
 
-  public setLine(line: number): void {
-    this.line = line;
-  }
-
+  public abstract updateToken(token: Token): void;
   public abstract onCursorUpdate(cursor: Cursor): void;
   public abstract getCursorPos(selNode: Node, offset: number): CursorPos | undefined;
 }
 
 export abstract class MDBlockNode extends MDNode {
-  protected nodes: MDNode[];
   private traits: Trait[] = [];
   private isCursorInside = false;
-
-  constructor(range: MDRange, nodes: MDNode[], tagName: TagName) {
-    super(range, tagName);
-    this.nodes = nodes;
-    appendNodesToEl(this.htmlEl, this.nodes);
-  }
 
   protected onCursorEnter(): void {}
   protected onCursorLeave(): void {}
@@ -100,22 +71,6 @@ export abstract class MDBlockNode extends MDNode {
     this.traits.push(trait);
   }
 
-  protected updateNodesCursor(_: Cursor): void {
-    console.error("This function is deprecated!");
-  }
-
-  public setLine(line: number): void {
-    this.line = line;
-
-    for(const trait of this.traits) {
-      trait.setLine(line);
-    }
-
-    for(const node of this.nodes) {
-      node.setLine(line);
-    }
-  }
-
   public onCursorUpdate(cursor: Cursor): void {
     if(this.isInCursorRange(cursor)) {
       this.cursorEnter();
@@ -127,16 +82,16 @@ export abstract class MDBlockNode extends MDNode {
       trait.onCursorUpdate(cursor);
     }
 
-    for(const node of this.nodes) {
-      node.onCursorUpdate(cursor);
-    }
+    // for(const node of this.nodes) {
+    //   node.onCursorUpdate(cursor);
+    // }
   }
 
   public getCursorPos(selNode: Node, offset: number): CursorPos | undefined {
-    for(const node of this.nodes) {
-      const pos = node.getCursorPos(selNode, offset);
-      if(pos !== undefined) return pos;
-    }
+    // for(const node of this.nodes) {
+    //   const pos = node.getCursorPos(selNode, offset);
+    //   if(pos !== undefined) return pos;
+    // }
 
     for(const trait of this.traits) {
       const pos = trait.getCursorPos(selNode, offset);

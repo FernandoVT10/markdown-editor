@@ -221,17 +221,18 @@ export class Rule extends MDBlockNode {
   }
 }
 
-export class MDList extends MDBlockNode {
-  constructor(token: Tokens.List, nodes: MDNode[]) {
-    const { range, marker } = token;
-    super(range, nodes, "div");
-
-    this.addTrait(new MDSyntax({
-      htmlEl: this.htmlEl,
-      mdMark: marker,
-      range: this.getRange(),
-      closeBlock: false,
-      keepActive: false,
-    }));
-  }
-}
+// TODO: Make the list node
+// export class MDList extends MDBlockNode {
+//   constructor(token: Tokens.List, nodes: MDNode[]) {
+//     const { range, marker } = token;
+//     super(range, nodes, "div");
+//
+//     this.addTrait(new MDSyntax({
+//       htmlEl: this.htmlEl,
+//       mdMark: marker,
+//       range: this.getRange(),
+//       closeBlock: false,
+//       keepActive: false,
+//     }));
+//   }
+// }

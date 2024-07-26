@@ -1,12 +1,12 @@
-import { CursorSelection } from "./cursor";
+import { CursorSelection, CursorPos } from "./cursor";
 import { MDNode } from "./tree/definitions";
-import { MDRange } from "./tokens";
+import { MDRange, TokenRange } from "./tokens";
 
 export function isalnum(text: string): boolean {
   return /[A-Z0-9]/i.test(text);
 }
 
-export function isPointInRange(point: number, range: MDRange): boolean {
+function isPointInRange(point: number, range: MDRange): boolean {
   return point >= range[0] && point <= range[1];
 }
 
@@ -17,7 +17,7 @@ export type Line = {
 
 export function checkLineCollision(lineA: Line, lineB: Line): boolean {
   const rangeA: MDRange = [lineA.start, lineA.end];
-  const rangeB: MDRange = [lineB.start, lineB.end]
+  const rangeB: MDRange = [lineB.start, lineB.end];
 
   return isPointInRange(lineA.start, rangeB)
     || isPointInRange(lineA.end, rangeB)
@@ -103,4 +103,22 @@ export function isLineRangeInSel(lineRange: LineRange, selection: CursorSelectio
   }
 
   return false;
+}
+
+export function isCursorPosInRange(pos: CursorPos, range: TokenRange): boolean {
+  const { start, end } = range;
+
+  if(!isPointInRange(pos.y, [start.line, end.line])) {
+    return false;
+  }
+
+  if(start.line === end.line) {
+    return isPointInRange(pos.x, [start.col, end.col]);
+  } else if(pos.y === start.line) {
+    return pos.x >= start.col;
+  } else if(pos.y === end.line) {
+    return pos.x <= end.col;
+  } else {
+    return true;
+  }
 }

@@ -14,7 +14,7 @@ export enum Types {
 
 export type MDRange = [number, number];
 
-type TokenRange = {
+export type TokenRange = {
   start: { line: number, col: number };
   end: { line: number, col: number };
 };
