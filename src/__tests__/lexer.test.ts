@@ -3,8 +3,9 @@ import { Types, Tokens, Token } from "../tokens";
 
 function setupInlineTokens(buffer: string): Token[] {
   const lexer = new Lexer(buffer);
-  const paragraphToken = lexer.scanTokens()[0] as Tokens.Paragraph;
+  const { tokens } = lexer.scan();
 
+  const paragraphToken = tokens[0] as Tokens.Paragraph;
   expect(paragraphToken.type).toBe(Types.Paragraph);
 
   return paragraphToken.tokens;
@@ -16,7 +17,7 @@ describe("Lexer", () => {
       const buffer = "test";
       const lexer = new Lexer(buffer);
 
-      const tokens = lexer.scanTokens();
+      const { tokens } = lexer.scan();
       expect(tokens).toHaveLength(1);
 
       const token = tokens[0] as Tokens.Paragraph;
@@ -95,7 +96,7 @@ describe("Lexer", () => {
       const buffer = "## hello";
       const lexer = new Lexer(buffer);
 
-      const tokens = lexer.scanTokens();
+      const { tokens } = lexer.scan();
       expect(tokens).toHaveLength(1);
 
       const token = tokens[0] as Tokens.Header;
@@ -119,14 +120,14 @@ describe("Lexer", () => {
       const buffer = "\n## test";
       const lexer = new Lexer(buffer);
 
-      const hToken = lexer.scanTokens()[1] as Tokens.Header;
+      const hToken = lexer.scan().tokens[1] as Tokens.Header;
       expect(hToken.type).toBe(Types.Header);
     });
 
     it("doesn't return a header token if # is not the first char", () => {
       const buffer = "0## test";
       const lexer = new Lexer(buffer);
-      const tokens = lexer.scanTokens();
+      const { tokens } = lexer.scan();
       expect(tokens).toHaveLength(1)
 
       expect(tokens[0].type).not.toBe(Types.Header);
@@ -135,7 +136,7 @@ describe("Lexer", () => {
     it("returns hasAfterSpace to false", () => {
       const buffer = "#";
       const lexer = new Lexer(buffer);
-      const token = lexer.scanTokens()[0] as Tokens.Header;
+      const token = lexer.scan().tokens[0] as Tokens.Header;
 
       expect(token.hasAfterSpace).toBeFalsy();
     });
@@ -214,7 +215,7 @@ describe("Lexer", () => {
       const buffer = "# Block 1\n# Block 2";
       const lexer = new Lexer(buffer);
 
-      const tokens = lexer.scanTokens();
+      const { tokens } = lexer.scan();
       expect(tokens).toHaveLength(3);
 
       // NOTE: token number 0 is the new line token
@@ -234,7 +235,7 @@ describe("Lexer", () => {
     it("should return a new line token", () => {
       const buffer = "\n";
       const lexer = new Lexer(buffer);
-      const tokens = lexer.scanTokens();
+      const { tokens } = lexer.scan();
       expect(tokens).toHaveLength(1);
 
       expect(tokens[0].type).toBe(Types.NewLine);
@@ -367,7 +368,7 @@ describe("Lexer", () => {
   describe("Horizontal Rule", () => {
     const testRule = (buffer: string) => {
       const lexer = new Lexer(buffer);
-      const tokens = lexer.scanTokens();
+      const { tokens } = lexer.scan();
 
       expect(tokens).toHaveLength(1);
 
@@ -404,13 +405,13 @@ describe("Lexer", () => {
 
     it("doesn't return a rule if line starts with space", () => {
       const lexer = new Lexer(" ---");
-      const rule = lexer.scanTokens()[0] as Tokens.Rule;
+      const rule = lexer.scan().tokens[0] as Tokens.Rule;
       expect(rule.type).not.toBe(Types.Rule);
     });
 
     it("doesn't return a rule if there's an invalid char", () => {
       const lexer = new Lexer("--->");
-      const rule = lexer.scanTokens()[0] as Tokens.Rule;
+      const rule = lexer.scan().tokens[0] as Tokens.Rule;
       expect(rule.type).not.toBe(Types.Rule);
     });
   });

@@ -4,6 +4,7 @@ import {
   isLineRangeInSel,
   Line,
   LineRange,
+  isCursorPosInRange,
 } from "../utils";
 
 describe("utils", () => {
@@ -122,6 +123,94 @@ describe("utils", () => {
         endPos: { x: 7, y: 2 },
       };
       expect(isLineRangeInSel(lineRange, selection)).toBeTruthy();
+    });
+  });
+
+  describe("isCursorPosInRange", () => {
+    it("returns true when cursor's y is between the range", () => {
+      const range = {
+        start: { line: 0, col: 10 },
+        end: { line: 2, col: 20 },
+      };
+      const cursorPos = { x: 25, y: 1 };
+      expect(isCursorPosInRange(cursorPos, range)).toBeTruthy();
+    });
+
+    it("returns false when cursor's y is not between the range", () => {
+      const range = {
+        start: { line: 0, col: 10 },
+        end: { line: 2, col: 20 },
+      };
+      const cursorPos = { x: 25, y: 3 };
+      expect(isCursorPosInRange(cursorPos, range)).toBeFalsy();
+    });
+
+    describe("passing single-line range", () => {
+      const range = {
+        start: { line: 0, col: 0 },
+        end: { line: 0, col: 20 },
+      };
+
+      it("returns true", () => {
+        const cursorPos = { x: 10, y: 0 };
+        expect(isCursorPosInRange(cursorPos, range)).toBeTruthy();
+      });
+
+      it("returns false", () => {
+        const cursorPos = { x: 21, y: 0 };
+        expect(isCursorPosInRange(cursorPos, range)).toBeFalsy();
+      });
+    });
+
+    describe("when cursor's y is equal to range's start line", () => {
+      const range = {
+        start: { line: 0, col: 10 },
+        end: { line: 2, col: 20 },
+      };
+
+      it("returns true", () => {
+        const cursorPos = { x: 10, y: 0 };
+        expect(isCursorPosInRange(cursorPos, range)).toBeTruthy();
+      });
+
+      it("returns false", () => {
+        const cursorPos = { x: 0, y: 0 };
+        expect(isCursorPosInRange(cursorPos, range)).toBeFalsy();
+      });
+    });
+
+    describe("when cursor's y is equal to range's end line", () => {
+      const range = {
+        start: { line: 0, col: 10 },
+        end: { line: 2, col: 20 },
+      };
+
+      it("returns true", () => {
+        const cursorPos = { x: 0, y: 2 };
+        expect(isCursorPosInRange(cursorPos, range)).toBeTruthy();
+      });
+
+      it("returns false", () => {
+        const cursorPos = { x: 21, y: 2 };
+        expect(isCursorPosInRange(cursorPos, range)).toBeFalsy();
+      });
+    });
+
+    describe("when cursor's y is equal to range's end line", () => {
+      const range = {
+        start: { line: 0, col: 10 },
+        end: { line: 2, col: 20 },
+      };
+
+      it("returns true", () => {
+        const cursorPos = { x: 0, y: 2 };
+        expect(isCursorPosInRange(cursorPos, range)).toBeTruthy();
+      });
+
+      it("returns false", () => {
+        const cursorPos = { x: 21, y: 2 };
+        expect(isCursorPosInRange(cursorPos, range)).toBeFalsy();
+      });
     });
   });
 });

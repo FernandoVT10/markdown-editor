@@ -1,4 +1,5 @@
 export enum Types {
+  Document,
   Text,
   Bold,
   Italic,
@@ -14,12 +15,18 @@ export enum Types {
 
 export type MDRange = [number, number];
 
-type TokenRange = {
+export type TokenRange = {
   start: { line: number, col: number };
   end: { line: number, col: number };
 };
 
 export namespace Tokens {
+  export interface Document {
+    type: Types.Document;
+    range: TokenRange;
+    tokens: Token[];
+  }
+
   export interface Text {
     type: Types.Text;
     range: TokenRange;
@@ -99,7 +106,8 @@ export namespace Tokens {
 }
 
 export type BlockTokens = (
-    Tokens.Bold
+    Tokens.Document
+  | Tokens.Bold
   | Tokens.Italic
   | Tokens.Header
   | Tokens.Paragraph
@@ -107,7 +115,8 @@ export type BlockTokens = (
 );
 
 export type Token = (
-    Tokens.Text
+    Tokens.Document
+  | Tokens.Text
   | Tokens.Bold
   | Tokens.Italic
   | Tokens.Code
@@ -118,3 +127,7 @@ export type Token = (
   | Tokens.Image
   | Tokens.Rule
   | Tokens.List);
+
+export function isAParentToken(token: Token): boolean {
+  return Array.isArray((token as BlockTokens).tokens);
+}

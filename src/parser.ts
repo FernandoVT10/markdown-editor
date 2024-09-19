@@ -1,4 +1,5 @@
-// @ts-nocheck
+import MDNode from "./tree/MDNode";
+
 import {
   Text,
   Paragraph,
@@ -9,73 +10,54 @@ import {
   Header,
   Link,
   MDImage,
-  Rule,
-  MDList,
+  Rule
 } from "./tree/nodes";
-import { MDNode, MDBlockNode } from "./tree/definitions";
-import { Types, Token, BlockTokens } from "./tokens";
+import { Token, BlockTokens, Types } from "./tokens";
 
-import Lexer from "./lexer";
+export function parseToken(token: Token): MDNode {
+  let nodes: any[] = [];
+  if(Array.isArray((token as BlockTokens).tokens)) {
+    nodes = parseTokens((token as BlockTokens).tokens);
+  }
+
+  switch(token.type) {
+    case Types.Text:
+      return new Text(token.text, token.range);
+    case Types.Paragraph:
+      return new Paragraph(token.range, nodes);
+    case Types.Italic:
+      return new Italic(token, nodes);
+    case Types.Bold:
+      return new Bold(token, nodes);
+    case Types.NewLine: 
+      return new NewLine(token);
+    case Types.Code:
+      return new Code(token);
+    case Types.Header:
+      return new Header(token, nodes);
+    case Types.Link:
+      return new Link(token);
+    case Types.Image:
+      return new MDImage(token);
+    case Types.Rule:
+      return new Rule(token);
+    default: {
+      // TODO: Remove this
+      return new Text("hello", token.range);
+    }
+    // case Types.List:
+    //   resNodes.push(new MDList(token, nodes));
+    //   break;
+   }
+}
 
 export function parseTokens(tokens: Token[]): MDNode[] {
   const resNodes: any[] = [];
-  return [];
 
-  for(const [i, token] of tokens.entries()) {
-    let nodes: any[] = [];
-    if(Array.isArray((token as BlockTokens).tokens)) {
-      nodes = parseTokens((token as BlockTokens).tokens);
-    }
-
-    switch(token.type) {
-      case Types.Paragraph:
-        resNodes.push(new Paragraph(token.range, nodes))
-        break;
-      case Types.Text:
-        resNodes.push(new Text(token.text, token.range));
-        break;
-      case Types.Italic:
-        resNodes.push(new Italic(token, nodes));
-        break;
-      case Types.Bold:
-        resNodes.push(new Bold(token, nodes));
-        break;
-      case Types.NewLine: {
-        const nextToken = tokens[i + 1];
-
-        if(!nextToken || nextToken.type === Types.NewLine) {
-          resNodes.push(new NewLine(token.range));
-        }
-      } break;
-      case Types.Code:
-        resNodes.push(new Code(token));
-        break;
-      case Types.Header:
-        resNodes.push(new Header(token, nodes));
-        break;
-      case Types.Link:
-        resNodes.push(new Link(token));
-        break;
-      case Types.Image:
-        resNodes.push(new MDImage(token));
-        break;
-      case Types.Rule:
-        resNodes.push(new Rule(token));
-        break;
-      case Types.List:
-        resNodes.push(new MDList(token, nodes));
-        break;
-    }
+  for(const [_i, token] of tokens.entries()) {
+    // TODO: only add new lines when there are 2 or more new lines together
+    resNodes.push(parseToken(token));
   }
 
   return resNodes;
-}
-
-export function parseLine(buffer: string): MDBlockNode {
-  const lexer = new Lexer(buffer);
-  const tokens = lexer.scanTokens();
-
-  const nodes = parseTokens(tokens);
-
-  return nodes[0] as MDBlockNode;
 }

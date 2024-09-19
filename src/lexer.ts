@@ -1,4 +1,4 @@
-import { Token, Types } from "./tokens";
+import { Token, Types, Tokens } from "./tokens";
 
 const HEADER_MAX_LEVEL = 6;
 
@@ -356,7 +356,7 @@ export default class Lexer {
             type: Types.NewLine,
             range: {
               start: { line: this.curLine, col: startCol },
-              end: { line: this.curLine, col: startCol + 1 },
+              end: { line: this.curLine + 1, col: 0 },
             },
           });
           this.curLine++;
@@ -376,8 +376,15 @@ export default class Lexer {
     return tokens;
   }
 
-  scanTokens(): Token[] {
+  scan(): Tokens.Document {
     const tokens = this.blockTokens();
-    return tokens;
+    return {
+      type: Types.Document,
+      range: {
+        start: { line: 0, col: 0 },
+        end: { line: this.curLine, col: this.curCol },
+      },
+      tokens,
+    };
   }
 }

@@ -1,6 +1,5 @@
-import { CursorSelection } from "./cursor";
-import { MDNode } from "./tree/definitions";
-import { MDRange } from "./tokens";
+import { CursorSelection, CursorPos } from "./cursor";
+import { MDRange, TokenRange } from "./tokens";
 
 export function isalnum(text: string): boolean {
   return /[A-Z0-9]/i.test(text);
@@ -23,12 +22,6 @@ export function checkLineCollision(lineA: Line, lineB: Line): boolean {
     || isPointInRange(lineA.end, rangeB)
     || isPointInRange(lineB.start, rangeA)
     || isPointInRange(lineB.end, rangeA);
-}
-
-export function appendNodesToEl(el: HTMLElement, nodes: MDNode[]): void {
-  for(const node of nodes) {
-    el.appendChild(node.getHTMLEl());
-  }
 }
 
 export function scrollToEl(el: HTMLElement): void {
@@ -103,4 +96,22 @@ export function isLineRangeInSel(lineRange: LineRange, selection: CursorSelectio
   }
 
   return false;
+}
+
+export function isCursorPosInRange(pos: CursorPos, range: TokenRange): boolean {
+  const { start, end } = range;
+
+  if(!isPointInRange(pos.y, [start.line, end.line])) {
+    return false;
+  }
+
+  if(start.line === end.line) {
+    return isPointInRange(pos.x, [start.col, end.col]);
+  } else if(pos.y === start.line) {
+    return pos.x >= start.col;
+  } else if(pos.y === end.line) {
+    return pos.x <= end.col;
+  } else {
+    return true;
+  }
 }

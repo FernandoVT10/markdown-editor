@@ -73,7 +73,7 @@ function setupTokensPreview(editorBuffer: MDBuffer): () => void {
   return () => {
     if(!areBuffersEq(previousBuffer, editorBuffer) && previewTokens) {
       const lexer = new Lexer(editorBuffer.join(""));
-      const tokens = lexer.scanTokens();
+      const { tokens } = lexer.scan();
 
       updateTokensPreview(tokens);
 

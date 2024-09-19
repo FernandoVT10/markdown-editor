@@ -1,237 +1,289 @@
-// @ts-nocheck
-import { MDNode, MDBlockNode, TagName } from "./definitions";
-import { MDRange } from "../tokens";
-import { Tokens } from "../tokens";
-import { MDSyntax, RawMdSyntax } from "./traits";
-import Cursor, { CursorPos } from "../cursor";
-import { setSelectionAtNode, scrollToEl } from "../utils";
+import MDNode from "./MDNode";
+import Subtree from "./traits/Subtree";
+import SelectableText from "./traits/SelectableText";
+import SyntaxSymbol from "./traits/SyntaxSymbol";
+import RawContent from "./traits/RawContent";
+import RawMarkdown from "./traits/RawMarkdown";
+import SelectableNewLine from "./traits/SelectableNewLine";
+
+import { TagName } from "./MDNode";
+import { Token, TokenRange, Tokens } from "../tokens";
 
 export class Text extends MDNode {
-  constructor(text: string, range: MDRange) {
+  constructor(text: string, range: TokenRange) {
     super(range, "span");
 
     this.htmlEl.textContent = text;
+
+    this.addTrait(new SelectableText());
   }
 
-  onCursorUpdate(cursor: Cursor): void {
-    const posX = cursor.getPosX();
-
-    if(this.isInCursorRange(cursor) && cursor.isCollapsed()) {
-      const offset = posX - this.getStartPos();
-      const node = this.htmlEl.firstChild;
-
-      if(node) setSelectionAtNode(node, offset);
-      scrollToEl(this.htmlEl);
-    }
+  onTokenUpdate(token: Tokens.Text): void {
+    this.htmlEl.textContent = token.text;
   }
 
-  getCursorPos(selNode: Node, offset: number): CursorPos | undefined {
-    if(this.htmlEl.firstChild?.isSameNode(selNode)) {
-      return {
-        x: this.getStartPos() + offset,
-        y: this.line,
-      };
-    }
+  updateText(text: string): void {
+    this.htmlEl.textContent = text;
   }
 }
 
-export class Paragraph extends MDBlockNode {
-  constructor(range: MDRange, nodes: MDNode[]) {
-    super(range, nodes, "p");
+export class Paragraph extends MDNode {
+  constructor(range: TokenRange, nodes: MDNode[]) {
+    super(range, "p");
+
+    this.addTrait(new Subtree(nodes, this.htmlEl));
   }
+
+  // paragraph doesn't need to update anything
+  onTokenUpdate(_: Token): void {}
 }
 
-export class Italic extends MDBlockNode {
+export class Italic extends MDNode {
   constructor(token: Tokens.Italic, nodes: MDNode[]) {
-    super(token.range, nodes, "i");
-    this.addTrait(new MDSyntax({
-      htmlEl: this.htmlEl,
-      mdMark: "*",
-      range: this.getRange(),
-      closeBlock: token.wasClosed,
-      keepActive: !token.wasClosed,
+    super(token.range, "i");
+    this.addTrait(new Subtree(nodes, this.htmlEl));
+
+    this.addTrait(new SyntaxSymbol("*", this.getRange(), this.htmlEl, {
+      addSymbolAtEnd: token.wasClosed,
+      neverHide: !token.wasClosed,
     }));
+  }
+
+  public onTokenUpdate(token: Tokens.Italic): void {
+    this.getTrait<SyntaxSymbol>(SyntaxSymbol).updateOpts({
+      addSymbolAtEnd: token.wasClosed,
+      neverHide: !token.wasClosed,
+    });
   }
 }
 
-export class Bold extends MDBlockNode {
+export class Bold extends MDNode {
   constructor(token: Tokens.Bold, nodes: MDNode[]) {
-    super(token.range, nodes, "strong");
-    this.addTrait(new MDSyntax({
-      htmlEl: this.htmlEl,
-      mdMark: "**",
-      range: this.getRange(),
-      closeBlock: token.wasClosed,
-      keepActive: !token.wasClosed,
+    super(token.range, "strong");
+
+    this.addTrait(new Subtree(nodes, this.htmlEl));
+    this.addTrait(new SyntaxSymbol("**", this.getRange(), this.htmlEl, {
+      addSymbolAtEnd: token.wasClosed,
+      neverHide: !token.wasClosed,
     }));
+  }
+
+  public onTokenUpdate(token: Tokens.Bold): void {
+    this.getTrait<SyntaxSymbol>(SyntaxSymbol).updateOpts({
+      addSymbolAtEnd: token.wasClosed,
+      neverHide: !token.wasClosed,
+    });
   }
 }
 
-export class NewLine extends MDBlockNode {
-  constructor(range: MDRange) {
-    super(range, [], "div");
+export class NewLine extends MDNode {
+  constructor(token: Tokens.NewLine) {
+    super(token.range, "div");
 
     const br = document.createElement("br");
     this.htmlEl.appendChild(br);
+
+    this.addTrait(new SelectableNewLine());
   }
 
-  onCursorUpdate(cursor: Cursor): void {
-    if(this.isInCursorRange(cursor) && cursor.isCollapsed()) {
-      setSelectionAtNode(this.htmlEl, 0);
-      scrollToEl(this.htmlEl);
-    }
-  }
-
-  getCursorPos(selNode: Node, _: number): CursorPos | undefined {
-    if(this.htmlEl.isSameNode(selNode)) {
-      return {
-        x: this.getStartPos(),
-        y: this.line,
-      };
-    }
-  }
+  public onTokenUpdate(_: Token): void {}
 }
 
-export class Code extends MDBlockNode {
+export class Code extends MDNode {
   constructor(token: Tokens.Code) {
-    const { range, wasClosed, content } = token;
+    const { range, wasClosed } = token;
 
-    const nodes: MDNode[] = [];
+    super(range, "code");
 
-    if(content.length > 0) {
-      const textStartPos = range[0] + 1;
-      const textEndPos = wasClosed ? range[1] - 1 : range[1];
-      nodes.push(new Text(content, [textStartPos, textEndPos]));
-    }
+    this.addTrait(new RawContent(token, this.htmlEl));
 
-    super(range, nodes, "code");
-
-    this.addTrait(new MDSyntax({
-      htmlEl: this.htmlEl,
-      mdMark: "`",
-      range: this.getRange(),
-      closeBlock: wasClosed,
-      keepActive: !wasClosed,
+    this.addTrait(new SyntaxSymbol("`", this.getRange(), this.htmlEl, {
+      addSymbolAtEnd: wasClosed,
+      neverHide: !wasClosed,
     }));
+  }
+
+  public onTokenUpdate(token: Tokens.Code): void {
+    this.getTrait<SyntaxSymbol>(SyntaxSymbol).updateOpts({
+      addSymbolAtEnd: token.wasClosed,
+      neverHide: !token.wasClosed,
+    });
+
+    this.getTrait<RawContent>(RawContent).updateData(
+      token.content, token.wasClosed
+    );
   }
 }
 
-export class Header extends MDBlockNode {
+export class Header extends MDNode {
+  static getTagName(level: number): TagName {
+    return `h${level}` as TagName;
+  }
+
+  private contentContainer: HTMLDivElement;
+
   constructor(token: Tokens.Header, nodes: MDNode[]) {
-    const { range, level } = token;
-    const tagName = `h${level}` as TagName;
-    super(range, nodes, tagName);
+    const { level } = token;
+    super(token.range, Header.getTagName(level));
 
-    const startPos = this.getStartPos();
-    let mdMark = "".padStart(level, "#");
-    let nodeEndPos = startPos + level;
+    this.contentContainer = document.createElement("div");
+    this.htmlEl.appendChild(this.contentContainer);
 
+    this.addTrait(new Subtree(nodes, this.contentContainer));
+
+    this.addTrait(new SyntaxSymbol(this.getSymbol(token), this.getRange(), this.contentContainer, {
+      addSymbolAtEnd: false,
+      neverHide: false,
+    }));
+  }
+
+  private getSymbol(token: Tokens.Header): string {
+    let symbol = "".padStart(token.level, "#");
     if(token.hasAfterSpace) {
-      mdMark += " ";
-      nodeEndPos++;
+      symbol += " ";
     }
+    return symbol;
+  }
 
-    this.addTrait(new MDSyntax({
-      htmlEl: this.htmlEl,
-      mdMark,
-      range: this.getRange(),
-      closeBlock: false,
-      keepActive: false,
-    }));
+  public onTokenUpdate(token: Tokens.Header): void {
+    // here we create another header element with the updated header level
+    const newHeaderEl = document.createElement(Header.getTagName(token.level));
+
+    // then we replace the old header with the new one
+    this.htmlEl.replaceWith(newHeaderEl);
+    this.htmlEl = newHeaderEl;
+
+    // and finally we need to append the element that contains everything to the new replaced header
+    this.htmlEl.appendChild(this.contentContainer);
+
+    this.getTrait<SyntaxSymbol>(SyntaxSymbol).updateSymbol(this.getSymbol(token));
   }
 }
 
-export class Link extends MDBlockNode {
+export class Link extends MDNode {
+  private linkEl: HTMLAnchorElement;
+
   constructor(token: Tokens.Link) {
-    super(token.range, [], "span");
+    super(token.range, "span");
 
-    const linkEl = document.createElement("a");
-    linkEl.innerText = token.text;
-    if(token.dest) linkEl.href = token.dest;
+    this.linkEl = document.createElement("a");
+    this.linkEl.innerText = token.text;
+    this.linkEl.href = token.dest || "";
 
-    this.addTrait(new RawMdSyntax({
-      containerEl: this.htmlEl,
-      rawMDText: token.raw,
+    const customGetCursorPos = (selNode: Node, offset: number) => {
+      if(this.linkEl.firstChild?.isSameNode(selNode)) {
+        // here we sum one to ignore the first "["
+        return {
+          x: this.getStartCol() + offset + 1,
+          y: this.getStartLine(),
+        };
+      }
+    };
+
+    this.addTrait(new RawMarkdown({
+      rawMarkdown: token.raw,
+      previewHtmlEl: this.linkEl,
       range: this.getRange(),
-      htmlEl: linkEl,
-      keepActive: !token.wasClosed,
-      getCursorPos: (selNode: Node, offset: number) => {
-        if(linkEl.firstChild?.isSameNode(selNode)) {
-          // here we sum one to ignore the first "["
-          return {
-            x: this.getStartPos() + offset + 1,
-            y: this.line,
-          };
-        }
-      },
+      parentEl: this.htmlEl,
+      customGetCursorPos,
+      opts: { neverHide: !token.wasClosed },
     }));
+  }
+
+  public onTokenUpdate(token: Tokens.Link): void {
+    this.linkEl.innerText = token.text;
+    this.linkEl.href = token.dest || "";
+
+    const rawMarkdown = this.getTrait<RawMarkdown>(RawMarkdown);
+    rawMarkdown.updateRawMarkdown(token.raw);
+    rawMarkdown.updateOpts({ neverHide: !token.wasClosed });
   }
 }
 
-export class MDImage extends MDBlockNode {
-  constructor(token: Tokens.Image) {
-    super(token.range, [], "span");
+export class MDImage extends MDNode {
+  private imgEl: HTMLImageElement;
 
-    const imgEl = document.createElement("img");
-    imgEl.alt = token.altText;
-    if(token.url) imgEl.src = token.url;
+  constructor(token: Tokens.Image) {
+    super(token.range, "span");
+
+    this.imgEl = document.createElement("img");
+    this.imgEl.alt = token.altText;
+    this.imgEl.src = token.url || "";
 
     const imgContainer = document.createElement("div");
-    imgContainer.appendChild(imgEl);
+    imgContainer.appendChild(this.imgEl);
 
-    this.addTrait(new RawMdSyntax({
-      containerEl: this.htmlEl,
-      rawMDText: token.raw,
+    const customGetCursorPos = (selNode: Node, _: number) => {
+      if(imgContainer.isSameNode(selNode)) {
+        return {
+          x: this.getEndCol(),
+          y: this.getStartLine(),
+        };
+      }
+    };
+
+    this.addTrait(new RawMarkdown({
+      rawMarkdown: token.raw,
+      previewHtmlEl: imgContainer,
       range: this.getRange(),
-      htmlEl: imgContainer,
-      keepActive: !token.wasClosed,
-      getCursorPos: (selNode: Node, _: number) => {
-        if(imgContainer.isSameNode(selNode)) {
-          return {
-            x: this.getEndPos(),
-            y: this.line,
-          };
-        }
-      },
+      parentEl: this.htmlEl,
+      customGetCursorPos,
+      opts: { neverHide: !token.wasClosed },
     }));
+  }
+
+  public onTokenUpdate(token: Tokens.Image): void {
+    this.imgEl.alt = token.altText;
+    this.imgEl.src = token.url || "";
+
+    const rawMarkdown = this.getTrait<RawMarkdown>(RawMarkdown);
+    rawMarkdown.updateRawMarkdown(token.raw);
+    rawMarkdown.updateOpts({ neverHide: !token.wasClosed });
   }
 }
 
-export class Rule extends MDBlockNode {
+export class Rule extends MDNode {
   constructor(token: Tokens.Rule) {
-    super(token.range, [], "div");
+    super(token.range, "div");
 
     const hrEl = document.createElement("hr");
 
-    this.addTrait(new RawMdSyntax({
-      containerEl: this.htmlEl,
-      rawMDText: token.raw,
+    const customGetCursorPos = (selNode: Node, _: number) => {
+      if(this.htmlEl.isSameNode(selNode) || hrEl.isSameNode(selNode)) {
+        return {
+          x: this.getEndCol(),
+          y: this.getStartLine(),
+        };
+      }
+    };
+
+    this.addTrait(new RawMarkdown({
+      rawMarkdown: token.raw,
+      previewHtmlEl: hrEl,
       range: this.getRange(),
-      htmlEl: hrEl,
-      keepActive: false,
-      getCursorPos: (selNode: Node, _: number) => {
-        if(this.htmlEl.isSameNode(selNode) || hrEl.isSameNode(selNode)) {
-          return {
-            x: this.getEndPos(),
-            y: this.line,
-          };
-        }
-      },
+      parentEl: this.htmlEl,
+      customGetCursorPos,
+      opts: { neverHide: false },
     }));
+  }
+
+  public onTokenUpdate(token: Tokens.Rule): void {
+    const rawMarkdown = this.getTrait<RawMarkdown>(RawMarkdown);
+    rawMarkdown.updateRawMarkdown(token.raw);
   }
 }
 
-export class MDList extends MDBlockNode {
-  constructor(token: Tokens.List, nodes: MDNode[]) {
-    const { range, marker } = token;
-    super(range, nodes, "div");
-
-    this.addTrait(new MDSyntax({
-      htmlEl: this.htmlEl,
-      mdMark: marker,
-      range: this.getRange(),
-      closeBlock: false,
-      keepActive: false,
-    }));
-  }
-}
+// export class MDList extends MDBlockNode {
+//   constructor(token: Tokens.List, nodes: MDNode[]) {
+//     const { range, marker } = token;
+//     super(range, nodes, "div");
+//
+//     this.addTrait(new MDSyntax({
+//       htmlEl: this.htmlEl,
+//       mdMark: marker,
+//       range: this.getRange(),
+//       closeBlock: false,
+//       keepActive: false,
+//     }));
+//   }
+// }
