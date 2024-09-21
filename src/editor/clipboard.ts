@@ -99,8 +99,6 @@ function setup(editor: Editor): void {
       };
     }
 
-    // TODO: maybe do something about this line?
-    editor.saveTypedBuffer();
     editor.undoManager.saveAndExec({
       linesOps,
       topLine: line - 1,
