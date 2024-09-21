@@ -1,21 +1,21 @@
 import Editor from "./editor";
 
 export type CursorPos = {
-  x: number;
-  y: number;
+  col: number;
+  line: number;
 }
 
 export type CursorSelection = {
-  startPos: CursorPos;
-  endPos: CursorPos;
+  start: CursorPos;
+  end: CursorPos;
 }
 
 export default class Cursor {
   private editor: Editor;
-  private prevPosX = 0;
-  private pos = {
-    x: 0,
-    y: 0,
+  private prevColPos = 0;
+  private pos: CursorPos = {
+    col: 0,
+    line: 0,
   };
 
   private selection?: CursorSelection;
@@ -40,76 +40,75 @@ export default class Cursor {
     return { ...this.pos };
   }
   
-  public getPosX(): number {
-    return this.pos.x;
+  public getCol(): number {
+    return this.pos.col;
   }
   
-  public getPosY(): number {
-    return this.pos.y;
+  public getLine(): number {
+    return this.pos.line;
   }
 
-  public setPos(x: number, y: number): void {
-    this.prevPosX = x;
-    this.pos.x = x;
-    this.pos.y = y;
+  public setPos(newPos: CursorPos): void {
+    this.pos = newPos;
+    this.prevColPos = newPos.col;
 
     this.selection = undefined;
   }
 
-  public setPosX(x: number): void {
-    this.pos.x = x;
-    this.prevPosX = x;
+  public setCol(col: number): void {
+    this.pos.col = col;
+    this.prevColPos = col;
     this.selection = undefined;
   }
 
-  public setPosY(y: number): void {
-    this.pos.y = y;
+  public setLine(line: number): void {
+    this.pos.line = line;
     this.selection = undefined;
   }
 
   public goLeft(): void {
-    if(this.pos.x > 0) {
-      this.pos.x--;
+    if(this.pos.col > 0) {
+      this.pos.col--;
     } else {
-      if(this.pos.y > 0) {
-        this.pos.y--;
-        this.pos.x = this.getLineLen(this.pos.y);
+      if(this.pos.line > 0) {
+        this.pos.line--;
+        this.pos.col = this.getLineLen(this.pos.line);
       }
     }
 
-    this.prevPosX = this.pos.x;
+    this.prevColPos = this.pos.col;
   }
 
   public goRight(): void {
-    if(this.pos.x < this.getLineLen(this.pos.y)) {
-      this.pos.x++;
+    if(this.pos.col < this.getLineLen(this.pos.line)) {
+      this.pos.col++;
     } else {
       const bufLen = this.editor.buffer.length;
-      if(this.pos.y < bufLen - 1) {
-        this.pos.y++;
-        this.pos.x = 0;
+      if(this.pos.line < bufLen - 1) {
+        this.pos.line++;
+        this.pos.col = 0;
       }
     }
 
-    this.prevPosX = this.pos.x;
+    this.prevColPos = this.pos.col;
   }
 
   public goDown(): void {
     const bufLen = this.editor.buffer.length;
-    if(this.pos.y < bufLen - 1) {
-      this.pos.y++;
+    if(this.pos.line < bufLen - 1) {
+      this.pos.line++;
 
-      const lineLen = this.getLineLen(this.pos.y);
-      this.pos.x = Math.min(this.prevPosX, lineLen);
+      const lineLen = this.getLineLen(this.pos.line);
+      this.pos.col = Math.min(this.prevColPos, lineLen);
     }
   }
 
   public goUp(): void {
-    if(this.pos.y > 0) {
-      this.pos.y--;
+    if(this.pos.line > 0) {
+      this.pos.line--;
 
-      const lineLen = this.getLineLen(this.pos.y);
-      this.pos.x = Math.min(this.prevPosX, lineLen);
+      const lineLen = this.getLineLen(this.pos.line);
+      this.pos.col = Math.min(this.prevColPos, lineLen);
     }
   }
 
@@ -117,8 +116,8 @@ export default class Cursor {
     return this.selection;
   }
 
-  public setSelection(startPos: CursorPos, endPos: CursorPos): void {
-    this.selection = { startPos, endPos };
+  public setSelection(start: CursorPos, end: CursorPos): void {
+    this.selection = { start, end };
   }
 
   public isCollapsed(): boolean {

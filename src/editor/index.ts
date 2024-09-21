@@ -98,21 +98,19 @@ export default class Editor {
 
     // if(!this.cursor.isCollapsed()) this.removeSelection();
 
-    const line = this.cursor.getPosY();
-    const col = this.cursor.getPosX();
+    const { col, line } = this.cursor.getPos();
 
     const bufLine = this.buffer[line];
     const leftPart = bufLine.slice(0, col);
     const rightPart = bufLine.slice(col);
 
-    this.cursor.setPosX(this.cursor.getPosX() + 1);
+    this.cursor.setCol(col + 1);
     const updatedBuff = leftPart + char + rightPart;
     this.updateLine(line, updatedBuff);
   }
 
   private addNewLine(): void {
-    const line = this.cursor.getPosY();
-    const col = this.cursor.getPosX();
+    const { col, line } = this.cursor.getPos();
 
     const bufLine = this.buffer[line];
     const leftPart = bufLine.slice(0, col);
@@ -128,7 +126,7 @@ export default class Editor {
       ],
       topLine: line - 1,
       oldCursorPos: this.cursor.getPosCopy(),
-      newCursorPos: { x: 0, y: line + 1 },
+      newCursorPos: { col: 0, line: line + 1 },
     });
   }
 
@@ -136,8 +134,7 @@ export default class Editor {
     // if(!this.cursor.isCollapsed())
     //   return this.removeSelection();
 
-    const col = this.cursor.getPosX();
-    const line = this.cursor.getPosY();
+    const { col, line } = this.cursor.getPos();
 
     if(col === 0 && line === 0) return;
 
@@ -146,7 +143,7 @@ export default class Editor {
       const leftPart = bufLine.slice(0, col - 1);
       const rightPart = bufLine.slice(col);
 
-      this.cursor.setPosX(col - 1);
+      this.cursor.setCol(col - 1);
       this.updateLine(line, leftPart + rightPart);
     } else {
       this.removeNewLine(line);
@@ -175,7 +172,7 @@ export default class Editor {
       topLine: prevLine - 1,
       oldCursorPos: this.cursor.getPosCopy(),
       // sets cursor at the end of the previous line
-      newCursorPos: { x: prevLineBuff.length - 1, y: prevLine },
+      newCursorPos: { col: prevLineBuff.length - 1, line: prevLine },
     });
   }
 
@@ -183,8 +180,8 @@ export default class Editor {
     // if(!this.cursor.isCollapsed())
     //   return this.removeSelection();
 
-    const col = this.cursor.getPosX();
-    const line = this.cursor.getPosY();
+    const { col, line } = this.cursor.getPos();
+
     const bufLine = this.buffer[line];
 
     // we start to delete from one character behind the cursor's col position
@@ -206,7 +203,7 @@ export default class Editor {
         ],
         topLine: line - 1,
         oldCursorPos: this.cursor.getPosCopy(),
-        newCursorPos: { x: col - count, y: line },
+        newCursorPos: { col: col - count, line },
       });
     } else {
       // if the first char is not alphanumeric, we delete only one char
@@ -320,7 +317,7 @@ export default class Editor {
           if(e.ctrlKey) {
             this.removeAlnumSequence();
           } else {
-            this.initTyping(this.cursor.getPosY());
+            this.initTyping(this.cursor.getLine());
             this.removeChar();
           }
 
@@ -338,7 +335,7 @@ export default class Editor {
           const char = e.key;
 
           if(char.length === 1) {
-            this.initTyping(this.cursor.getPosY());
+            this.initTyping(this.cursor.getLine());
             this.addChar(char);
             this.updateTree();
           }

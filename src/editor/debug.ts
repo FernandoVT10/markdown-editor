@@ -85,15 +85,15 @@ function setupTokensPreview(editorBuffer: MDBuffer): () => void {
 export function setup(editor: Editor): void {
   if(process.env.NODE_ENV === "test") return;
 
-  const cursorPosX = document.getElementById("cursor-pos-x") as HTMLElement;
-  const cursorPosY = document.getElementById("cursor-pos-y") as HTMLElement;
+  const cursorPosX = document.getElementById("cursor-col") as HTMLElement;
+  const cursorPosY = document.getElementById("cursor-line") as HTMLElement;
 
   const updateTokensPreview = setupTokensPreview(editor.buffer);
 
   const loop = () => {
-    const { x, y } = editor.cursor.getPos();
-    cursorPosX.innerText = x.toString();
-    cursorPosY.innerText = y.toString();
+    const { col, line } = editor.cursor.getPos();
+    cursorPosX.innerText = col.toString();
+    cursorPosY.innerText = line.toString();
 
     updateTokensPreview();
     window.requestAnimationFrame(loop);

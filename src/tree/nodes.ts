@@ -174,8 +174,8 @@ export class Link extends MDNode {
       if(this.linkEl.firstChild?.isSameNode(selNode)) {
         // here we sum one to ignore the first "["
         return {
-          x: this.getStartCol() + offset + 1,
-          y: this.getStartLine(),
+          col: this.getStartCol() + offset + 1,
+          line: this.getStartLine(),
         };
       }
     };
@@ -216,8 +216,8 @@ export class MDImage extends MDNode {
     const customGetCursorPos = (selNode: Node, _: number) => {
       if(imgContainer.isSameNode(selNode)) {
         return {
-          x: this.getEndCol(),
-          y: this.getStartLine(),
+          col: this.getEndCol(),
+          line: this.getStartLine(),
         };
       }
     };
@@ -251,8 +251,8 @@ export class Rule extends MDNode {
     const customGetCursorPos = (selNode: Node, _: number) => {
       if(this.htmlEl.isSameNode(selNode) || hrEl.isSameNode(selNode)) {
         return {
-          x: this.getEndCol(),
-          y: this.getStartLine(),
+          col: this.getEndCol(),
+          line: this.getStartLine(),
         };
       }
     };

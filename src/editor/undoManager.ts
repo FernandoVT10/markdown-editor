@@ -70,8 +70,7 @@ export default class UndoManager {
       const startLine = undoItem.topLine + 1;
       this.revertLinesOps(startLine, undoItem.linesOps);
 
-      const cursorPos = undoItem.oldCursorPos;
-      this.editor.cursor.setPos(cursorPos.x, cursorPos.y);
+      this.editor.cursor.setPos(undoItem.oldCursorPos);
     }
   }
 
@@ -81,8 +80,7 @@ export default class UndoManager {
       const startLine = redoItem.topLine + 1;
       this.execLinesOps(startLine, redoItem.linesOps);
 
-      const cursorPos = redoItem.newCursorPos;
-      this.editor.cursor.setPos(cursorPos.x, cursorPos.y);
+      this.editor.cursor.setPos(redoItem.newCursorPos);
 
       this.cursor++;
     }
@@ -104,7 +102,6 @@ export default class UndoManager {
     const startLine = item.topLine + 1;
     this.execLinesOps(startLine, item.linesOps);
 
-    const cursorPos = item.newCursorPos;
-    this.editor.cursor.setPos(cursorPos.x, cursorPos.y);
+    this.editor.cursor.setPos(item.newCursorPos);
   }
 }

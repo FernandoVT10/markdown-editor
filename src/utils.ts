@@ -69,48 +69,48 @@ export type LineRange = {
   range: MDRange;
 }
 
-export function isLineRangeInSel(lineRange: LineRange, selection: CursorSelection): boolean {
-  const { startPos, endPos } = selection;
+// export function isLineRangeInSel(lineRange: LineRange, selection: CursorSelection): boolean {
+//   const { startPos, endPos } = selection;
+//
+//   const line = lineRange.line;
+//   const [startRange, endRange] = lineRange.range;
+//
+//   if(line >= startPos.y && line <= endPos.y) {
+//     if(endPos.y === startPos.y) {
+//       // here the selection is only in one line, so we have two lines (range and selection)
+//       // and we return the result depending if both lines touch.
+//       return checkLineCollision(
+//         { start: startRange, end: endRange },
+//         { start: startPos.x, end: endPos.x },
+//       );
+//     } else if(line === startPos.y) {
+//       // here the selection is at least of two lines, so the only thing we have to check
+//       // is if the range touch the start of the selection
+//       return endRange >= startPos.x;
+//     } else if(line === endPos.y) {
+//       // here we're at the end of the selection, so we check if the range and selection touch each other
+//       return startRange <= endPos.x;
+//     }
+//
+//     return true;
+//   }
+//
+//   return false;
+// }
 
-  const line = lineRange.line;
-  const [startRange, endRange] = lineRange.range;
-
-  if(line >= startPos.y && line <= endPos.y) {
-    if(endPos.y === startPos.y) {
-      // here the selection is only in one line, so we have two lines (range and selection)
-      // and we return the result depending if both lines touch.
-      return checkLineCollision(
-        { start: startRange, end: endRange },
-        { start: startPos.x, end: endPos.x },
-      );
-    } else if(line === startPos.y) {
-      // here the selection is at least of two lines, so the only thing we have to check
-      // is if the range touch the start of the selection
-      return endRange >= startPos.x;
-    } else if(line === endPos.y) {
-      // here we're at the end of the selection, so we check if the range and selection touch each other
-      return startRange <= endPos.x;
-    }
-
-    return true;
-  }
-
-  return false;
-}
-
-export function isCursorPosInRange(pos: CursorPos, range: TokenRange): boolean {
+export function isCursorPosInRange(cursor: CursorPos, range: TokenRange): boolean {
   const { start, end } = range;
 
-  if(!isPointInRange(pos.y, [start.line, end.line])) {
+  if(!isPointInRange(cursor.line, [start.line, end.line])) {
     return false;
   }
 
   if(start.line === end.line) {
-    return isPointInRange(pos.x, [start.col, end.col]);
-  } else if(pos.y === start.line) {
-    return pos.x >= start.col;
-  } else if(pos.y === end.line) {
-    return pos.x <= end.col;
+    return isPointInRange(cursor.col, [start.col, end.col]);
+  } else if(cursor.line === start.line) {
+    return cursor.col >= start.col;
+  } else if(cursor.line === end.line) {
+    return cursor.col <= end.col;
   } else {
     return true;
   }

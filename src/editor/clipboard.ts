@@ -10,19 +10,19 @@ import {
 export function getSelectedText(buffer: MDBuffer, selection: CursorSelection): string {
   let text = "";
 
-  const { startPos, endPos } = selection;
+  const { start, end } = selection;
 
-  if(startPos.y === endPos.y) {
-    const line = startPos.y;
-    text = buffer[line].slice(startPos.x, endPos.x);
+  if(start.line === end.line) {
+    const line = start.line;
+    text = buffer[line].slice(start.col, end.col);
   } else {
-    for(let line = startPos.y; line <= endPos.y; line++) {
+    for(let line = start.line; line <= end.line; line++) {
       const bufLine = buffer[line];
 
-      if(line === startPos.y) {
-        text += bufLine.slice(startPos.x);
-      } else if(line === endPos.y) {
-        text += bufLine.slice(0, endPos.x);
+      if(line === start.line) {
+        text += bufLine.slice(start.col);
+      } else if(line === end.line) {
+        text += bufLine.slice(0, end.col);
       } else {
         text += bufLine;
       }
@@ -33,12 +33,12 @@ export function getSelectedText(buffer: MDBuffer, selection: CursorSelection): s
 }
 
 export function getPastedLinesOps(pastedLines: string[], cursorPos: CursorPos, buffer: MDBuffer): LineOpType[] {
-  const posX = cursorPos.x;
-  const line = cursorPos.y;
+  const { col, line } = cursorPos;
+
   const bufLine = buffer[line];
 
-  const leftPart = bufLine.slice(0, posX);
-  const rightPart = bufLine.slice(posX);
+  const leftPart = bufLine.slice(0, col);
+  const rightPart = bufLine.slice(col);
 
   const linesOps: LineOpType[] = [];
 
@@ -81,8 +81,7 @@ function setup(editor: Editor): void {
     const pastedText = e.clipboardData?.getData("text/plain");
     if(!pastedText) return;
 
-    const posX = editor.cursor.getPosX();
-    const line = editor.cursor.getPosY();
+    const { col, line } = editor.cursor.getPos();
     const pastedLines = pastedText.split("\n");
     const linesOps = getPastedLinesOps(pastedLines, editor.cursor.getPos(), editor.buffer);
 
@@ -90,16 +89,17 @@ function setup(editor: Editor): void {
     if(pastedLines.length > 1) {
       const lastIndex = pastedLines.length - 1;
       newCursorPos = {
-        x: pastedLines[lastIndex].length,
-        y: line + lastIndex,
+        col: pastedLines[lastIndex].length,
+        line: line + lastIndex,
       };
     } else {
       newCursorPos = {
-        x: posX + pastedText.length,
-        y: line,
+        col: col + pastedText.length,
+        line,
       };
     }
 
+    // TODO: maybe do something about this line?
     editor.saveTypedBuffer();
     editor.undoManager.saveAndExec({
       linesOps,

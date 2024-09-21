@@ -7,11 +7,11 @@ import Cursor, { CursorPos } from "../../cursor";
 
 export default class SelectableText extends Trait {
   public onCursorUpdate(mdNode: MDNode, cursor: Cursor): void {
-    const posX = cursor.getPosX();
+    const col = cursor.getCol();
 
     if(mdNode.isInCursorRange(cursor) && cursor.isCollapsed()) {
       const htmlEl = mdNode.getHTMLEl();
-      const offset = posX - mdNode.getStartCol();
+      const offset = col - mdNode.getStartCol();
       const node = htmlEl.firstChild;
 
       if(node) setSelectionAtNode(node, offset);
@@ -23,8 +23,8 @@ export default class SelectableText extends Trait {
     const htmlEl = mdNode.getHTMLEl();
     if(htmlEl.firstChild?.isSameNode(selNode)) {
       return {
-        x: mdNode.getStartCol() + offset,
-        y: mdNode.getStartLine(),
+        col: mdNode.getStartCol() + offset,
+        line: mdNode.getStartLine(),
       };
     }
   }
