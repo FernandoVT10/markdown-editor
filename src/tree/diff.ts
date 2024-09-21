@@ -41,8 +41,7 @@ function areTokensEqual(t1: Token, t2: Token): boolean {
       return t1.hasAfterSpace === t2.hasAfterSpace && t1.level === t2.level;
     }
     case Types.NewLine: {
-      console.error("NewLine is not implemeted yet");
-      return false;
+      return true;
     }
     case Types.Link: {
       t2 = t2 as Tokens.Link;
