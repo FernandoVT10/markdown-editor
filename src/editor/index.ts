@@ -7,8 +7,6 @@ import Clipboard from "./clipboard";
 import Debug from "./debug";
 
 import {
-  LineOps,
-  LineOpType,
   addLineOp,
   removeLineOp,
   updateLineOp
@@ -17,9 +15,9 @@ import { isalnum, isSpecialAction } from "../utils";
 
 type TypingState = {
   isTyping: boolean;
-  startCursorPos?: CursorPos;  // cursor position before starting to type
-  startLineBuff?: string;      // buffer of the line we're going to type before of update it
-  startLine?: number;
+  initialCursorPos?: CursorPos;  // cursor position before starting to type
+  initialBuff?: string;      // buffer of the line we're going to type before of update it
+  line?: number;
 }
 
 export type MDBuffer = string[];
@@ -57,70 +55,26 @@ export default class Editor {
     // this.setupSelection();
   }
 
-  private addLine(line: number, text: string): void {
+  public addLine(line: number, text: string): void {
     this.buffer.splice(line, 0, text);
   }
 
-  private updateLine(line: number, text: string): void {
+  public updateLine(line: number, text: string): void {
     this.buffer[line] = text;
   }
 
-  private removeLine(line: number): void {
+  public removeLine(line: number): void {
     if(line > 0 && line < this.buffer.length) {
       this.buffer.splice(line, 1);
     }
   }
 
-  public execLinesOps(startLine: number, linesOps: LineOpType[]): void {
-    let lineNumber = startLine;
-
-    // TODO: group similar sequencial operations and execute them together
-    for(const lineOp of linesOps) {
-      switch(lineOp.type) {
-        case LineOps.Add: {
-          this.buffer.splice(lineNumber, 0, lineOp.addedBuff);
-        } break;
-        case LineOps.Update: {
-          this.updateLine(lineNumber, lineOp.postUpdateBuff);
-        } break;
-        case LineOps.Remove: {
-          this.removeLine(lineNumber);
-          lineNumber--;
-        } break;
-      }
-
-      lineNumber++;
-    }
-
-    this.updateTree();
-  }
-
-  public revertLinesOps(startLine: number, lineOps: LineOpType[]): void {
-    let lineNumber = startLine;
-
-    // TODO: group similar sequencial operations and execute them together
-    for(const lineOp of lineOps) {
-      switch(lineOp.type) {
-        case LineOps.Add: {
-          this.removeLine(lineNumber);
-          lineNumber--;
-        } break;
-        case LineOps.Update: {
-          this.updateLine(lineNumber, lineOp.preUpdateBuff);
-        } break;
-        case LineOps.Remove: {
-          this.addLine(lineNumber, lineOp.removedBuff);
-        } break;
-      }
-
-      lineNumber++;
-    }
-  }
-
-  private updateTree(): void {
+  public updateTree(): void {
     const lexer = new Lexer(this.buffer.join(""));
     const docToken = lexer.scan();
     this.tree.updateDocToken(docToken);
+
+    this.emitCursorUpdate();
   }
 
   private emitCursorUpdate(): void {
@@ -128,14 +82,21 @@ export default class Editor {
     this.tree.onCursorUpdate(this.cursor);
   }
 
-  public updateCursorPos(cursorPos: CursorPos): void {
-    const { x, y } = cursorPos;
-    this.cursor.setPos(x, y);
-    this.emitCursorUpdate();
+  private initTyping(line: number): void {
+    if(!this.typingState.isTyping) {
+      this.typingState = {
+        isTyping: true,
+        initialBuff: this.buffer[line],
+        initialCursorPos: this.cursor.getPosCopy(),
+        line,
+      };
+    }
   }
 
   private addChar(char: string): void {
     if(char.length > 1) return;
+
+    // if(!this.cursor.isCollapsed()) this.removeSelection();
 
     const line = this.cursor.getPosY();
     const col = this.cursor.getPosX();
@@ -144,235 +105,136 @@ export default class Editor {
     const leftPart = bufLine.slice(0, col);
     const rightPart = bufLine.slice(col);
 
-    if(char === "\n") {
-      const updatedBuff = leftPart + char;
-      const addedBuff = rightPart;
+    this.cursor.setPosX(this.cursor.getPosX() + 1);
+    const updatedBuff = leftPart + char + rightPart;
+    this.updateLine(line, updatedBuff);
+  }
+
+  private addNewLine(): void {
+    const line = this.cursor.getPosY();
+    const col = this.cursor.getPosX();
+
+    const bufLine = this.buffer[line];
+    const leftPart = bufLine.slice(0, col);
+    const rightPart = bufLine.slice(col);
+
+    const updatedBuff = leftPart + "\n";
+    const addedBuff = rightPart;
+
+    this.undoManager.saveAndExec({
+      linesOps: [
+        updateLineOp(bufLine, updatedBuff),
+        addLineOp(addedBuff),
+      ],
+      topLine: line - 1,
+      oldCursorPos: this.cursor.getPosCopy(),
+      newCursorPos: { x: 0, y: line + 1 },
+    });
+  }
+
+  private removeChar(): void {
+    // if(!this.cursor.isCollapsed())
+    //   return this.removeSelection();
+
+    const col = this.cursor.getPosX();
+    const line = this.cursor.getPosY();
+
+    if(col === 0 && line === 0) return;
+
+    if(col > 0) {
+      const bufLine = this.buffer[line];
+      const leftPart = bufLine.slice(0, col - 1);
+      const rightPart = bufLine.slice(col);
+
+      this.cursor.setPosX(col - 1);
+      this.updateLine(line, leftPart + rightPart);
+    } else {
+      this.removeNewLine(line);
+    }
+  }
+
+  private removeNewLine(line: number): void {
+    if(line < 1) return;
+
+    const curLineBuff = this.buffer[line];
+
+    const prevLine = line - 1;
+    const prevLineBuff = this.buffer[prevLine];
+
+    let updatedBuff = prevLineBuff;
+
+    if(curLineBuff.length) {
+      updatedBuff += curLineBuff;
+    }
+
+    this.undoManager.saveAndExec({
+      linesOps: [
+        updateLineOp(prevLineBuff, updatedBuff),
+        removeLineOp(curLineBuff),
+      ],
+      topLine: prevLine - 1,
+      oldCursorPos: this.cursor.getPosCopy(),
+      // sets cursor at the end of the previous line
+      newCursorPos: { x: prevLineBuff.length - 1, y: prevLine },
+    });
+  }
+
+  private removeAlnumSequence(): void {
+    // if(!this.cursor.isCollapsed())
+    //   return this.removeSelection();
+
+    const col = this.cursor.getPosX();
+    const line = this.cursor.getPosY();
+    const bufLine = this.buffer[line];
+
+    // we start to delete from one character behind the cursor's col position
+    const startingCol = col - 1;
+
+    // if the char is alphanumeric we will keep removing chars until we find
+    // a non alphanumeric char
+    if(col > 0 && isalnum(bufLine.charAt(startingCol))) {
+      let count = 0;
+      while(isalnum(bufLine.charAt(startingCol - count))) count++;
+
+      const leftPart = bufLine.slice(0, col - count);
+      const rightPart = bufLine.slice(col);
+      const updatedBuff = leftPart + rightPart;
 
       this.undoManager.saveAndExec({
         linesOps: [
           updateLineOp(bufLine, updatedBuff),
-          addLineOp(addedBuff),
         ],
         topLine: line - 1,
         oldCursorPos: this.cursor.getPosCopy(),
-        newCursorPos: { x: 0, y: line + 1 },
+        newCursorPos: { x: col - count, y: line },
       });
     } else {
-      if(!this.typingState.isTyping) {
-        this.typingState = {
-          isTyping: true,
-          startLineBuff: bufLine,
-          startCursorPos: this.cursor.getPosCopy(),
-          startLine: line,
-        };
-      }
-
-      this.cursor.setPosX(this.cursor.getPosX() + 1);
-      const text = leftPart + char + rightPart;
-      this.updateLine(line, text);
-      this.updateTree();
-      this.emitCursorUpdate();
+      // if the first char is not alphanumeric, we delete only one char
+      this.removeChar();
     }
   }
 
-  private removeChar(): void {
-    const posX = this.cursor.getPosX();
-    const posY = this.cursor.getPosY();
-    if(posX === 0 && posY === 0) return;
+  public saveTypedBuffer(): void {
+    if(this.typingState.isTyping) {
+      const initialBuff = this.typingState.initialBuff as string;
+      const initialCursorPos = this.typingState.initialCursorPos as CursorPos;
+      const line = this.typingState.line as number;
 
-    if(posX > 0) {
-      const column = posX;
-      const line = posY;
-      const bufLine = this.buffer[line];
-      const leftPart = bufLine.slice(0, column - 1);
-      const rightPart = bufLine.slice(column);
-      
-      if(!this.typingState.isTyping) {
-        this.typingState = {
-          isTyping: true,
-          startLineBuff: bufLine,
-          startCursorPos: this.cursor.getPosCopy(),
-          startLine: line,
-        };
-      }
+      const updatedBuff = this.buffer[line];
 
-      this.cursor.setPosX(posX - 1);
-      this.updateLine(line, leftPart + rightPart);
-      this.updateTree();
-      this.emitCursorUpdate();
-    } else {
-      // deletes a new line
-      const currentLine = posY;
-      const prevLine = currentLine - 1;
-      const prevLineLen = this.buffer[prevLine].length;
-
-      let updatedBuff = this.buffer[prevLine].slice(0, prevLineLen - 1);
-
-      const currentLineBuff = this.buffer[currentLine];
-      if(currentLineBuff.length) {
-        updatedBuff += currentLineBuff;
-      }
-
-      this.saveTypedBuffer();
-      this.undoManager.saveAndExec({
+      this.undoManager.save({
         linesOps: [
-          updateLineOp(this.buffer[prevLine], updatedBuff),
-          removeLineOp(currentLineBuff),
+          updateLineOp(initialBuff, updatedBuff),
         ],
-        topLine: prevLine - 1,
-        oldCursorPos: this.cursor.getPosCopy(),
-        newCursorPos: { x: prevLineLen - 1, y: currentLine - 1 },
+        topLine: line - 1,
+        oldCursorPos: initialCursorPos,
+        newCursorPos: this.cursor.getPosCopy(),
       });
+
+      this.typingState.isTyping = false;
     }
   }
 
-  // public saveTypedBuffer(): void {
-  //   if(this.typingState.isTyping) {
-  //     const bufLine = this.typingState.startLineBuff as string;
-  //     const cursorPos = this.typingState.startCursorPos as CursorPos;
-  //     const line = this.typingState.startLine as number;
-  //
-  //     const updatedBuff = this.buffer[line];
-  //
-  //     this.undoManager.save({
-  //       linesOps: [
-  //         updateLineOp(bufLine, updatedBuff),
-  //       ],
-  //       topLine: line - 1,
-  //       oldCursorPos: cursorPos,
-  //       newCursorPos: this.cursor.getPosCopy(),
-  //     });
-  //
-  //     this.typingState.isTyping = false;
-  //   }
-  // }
-
-  // private addChar(char: string): void {
-  //   if(char.length > 1) return;
-  //
-  //   // if(!this.cursor.isCollapsed()) this.removeSelection();
-  //
-  //   const line = this.cursor.getPosY();
-  //   const column = this.cursor.getPosX();
-  //
-  //   const bufLine = this.buffer[line];
-  //   const leftPart = bufLine.slice(0, column);
-  //   const rightPart = bufLine.slice(column);
-  //
-  //   if(char === "\n") {
-  //     const updatedBuff = leftPart + char;
-  //     const addedBuff = rightPart;
-  //
-  //     this.saveTypedBuffer();
-  //     this.undoManager.saveAndExec({
-  //       linesOps: [
-  //         updateLineOp(bufLine, updatedBuff),
-  //         addLineOp(addedBuff),
-  //       ],
-  //       topLine: line - 1,
-  //       oldCursorPos: this.cursor.getPosCopy(),
-  //       newCursorPos: { x: 0, y: line + 1 },
-  //     });
-  //   } else {
-  //     if(!this.typingState.isTyping) {
-  //       this.typingState = {
-  //         isTyping: true,
-  //         startLineBuff: bufLine,
-  //         startCursorPos: this.cursor.getPosCopy(),
-  //         startLine: line,
-  //       };
-  //     }
-  //
-  //     this.cursor.setPosX(this.cursor.getPosX() + 1);
-  //     const text = leftPart + char + rightPart;
-  //     this.updateLine(line, text);
-  //     this.emitCursorUpdate();
-  //   }
-  // }
-
-  // private removeChar(): void {
-  //   if(!this.cursor.isCollapsed())
-  //     return this.removeSelection();
-  //
-  //   const posX = this.cursor.getPosX();
-  //   const posY = this.cursor.getPosY();
-  //   if(posX === 0 && posY === 0) return;
-  //
-  //   if(posX > 0) {
-  //     const column = posX;
-  //     const line = posY;
-  //     const bufLine = this.buffer[line];
-  //     const leftPart = bufLine.slice(0, column - 1);
-  //     const rightPart = bufLine.slice(column);
-  //     
-  //     if(!this.typingState.isTyping) {
-  //       this.typingState = {
-  //         isTyping: true,
-  //         startLineBuff: bufLine,
-  //         startCursorPos: this.cursor.getPosCopy(),
-  //         startLine: line,
-  //       };
-  //     }
-  //
-  //     this.cursor.setPosX(posX - 1);
-  //     this.updateLine(line, leftPart + rightPart);
-  //     this.emitCursorUpdate();
-  //   } else {
-  //     // deletes a new line
-  //     const currentLine = posY;
-  //     const prevLine = currentLine - 1;
-  //     const prevLineLen = this.buffer[prevLine].length;
-  //
-  //     let updatedBuff = this.buffer[prevLine].slice(0, prevLineLen - 1);
-  //
-  //     const currentLineBuff = this.buffer[currentLine];
-  //     if(currentLineBuff.length) {
-  //       updatedBuff += currentLineBuff;
-  //     }
-  //
-  //     this.saveTypedBuffer();
-  //     this.undoManager.saveAndExec({
-  //       linesOps: [
-  //         updateLineOp(this.buffer[prevLine], updatedBuff),
-  //         removeLineOp(currentLineBuff),
-  //       ],
-  //       topLine: prevLine - 1,
-  //       oldCursorPos: this.cursor.getPosCopy(),
-  //       newCursorPos: { x: prevLineLen - 1, y: currentLine - 1 },
-  //     });
-  //   }
-  // }
-  //
-  // private removeCharSequence(): void {
-  //   if(!this.cursor.isCollapsed())
-  //     return this.removeSelection();
-  //
-  //   const column = this.cursor.getPosX();
-  //   const line = this.cursor.getPosY();
-  //   const bufLine = this.buffer[line];
-  //
-  //   if(column > 0 && isalnum(bufLine.charAt(column - 1))) {
-  //     let count = 0;
-  //     while(isalnum(bufLine.charAt(column - count - 1))) count++;
-  //
-  //     const leftPart = bufLine.slice(0, column - count);
-  //     const rightPart = bufLine.slice(column);
-  //     const updatedBuff = leftPart + rightPart;
-  //
-  //     this.saveTypedBuffer();
-  //     this.undoManager.saveAndExec({
-  //       linesOps: [
-  //         updateLineOp(bufLine, updatedBuff),
-  //       ],
-  //       topLine: line - 1,
-  //       oldCursorPos: this.cursor.getPosCopy(),
-  //       newCursorPos: { x: column - count, y: line },
-  //     });
-  //   } else {
-  //     this.removeChar();
-  //   }
-  // }
-  //
   // private removeSelection(): void {
   //   const selection = this.cursor.getSelection();
   //
@@ -419,8 +281,6 @@ export default class Editor {
   //   });
   // }
 
-  private saveTypedBuffer(): void {}
-
   private setupKeyboard(): void {
     this.container.addEventListener("keydown", (e) => {
       if(isSpecialAction(e)) return;
@@ -429,14 +289,10 @@ export default class Editor {
       // UNDO and REDO
       const key = e.key.toLowerCase();
       if(e.ctrlKey && key === "z") {
-        if(e.shiftKey) {
-          this.undoManager.redo();
-        } else {
-          this.saveTypedBuffer();
-          this.undoManager.undo();
-        }
+        if(e.shiftKey) this.undoManager.redo();
+        else this.undoManager.undo();
 
-        return;
+        return this.updateTree();
       }
 
       switch(e.key) {
@@ -460,22 +316,33 @@ export default class Editor {
           this.cursor.goUp();
           this.emitCursorUpdate();
           break;
-        case "Backspace":
+        case "Backspace": {
           if(e.ctrlKey) {
-            // this.removeCharSequence();
+            this.removeAlnumSequence();
           } else {
+            this.initTyping(this.cursor.getPosY());
             this.removeChar();
           }
-          break;
-        case "Enter":
-          this.addChar("\n");
-          break;
-        case "Tab":
+
+          this.updateTree();
+        } break;
+        case "Enter": {
+          this.addNewLine();
+          this.updateTree();
+        } break;
+        case "Tab": {
           this.addChar("\t");
-          break;
-        default:
-          this.addChar(e.key);
-          break;
+          this.updateTree();
+        } break;
+        default: {
+          const char = e.key;
+
+          if(char.length === 1) {
+            this.initTyping(this.cursor.getPosY());
+            this.addChar(char);
+            this.updateTree();
+          }
+        } break;
       }
     });
   }

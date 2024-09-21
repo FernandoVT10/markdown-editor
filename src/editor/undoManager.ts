@@ -1,6 +1,6 @@
 import Editor from ".";
 
-import { LineOpType } from "../lineOps";
+import { LineOpType, LineOps } from "../lineOps";
 import { CursorPos } from "../cursor";
 
 export type UndoItem = {
@@ -19,13 +19,59 @@ export default class UndoManager {
     this.editor = editor;
   }
 
+  private execLinesOps(startLine: number, linesOps: LineOpType[]): void {
+    let lineNumber = startLine;
+
+    // TODO: group similar sequencial operations and execute them together
+    for(const lineOp of linesOps) {
+      switch(lineOp.type) {
+        case LineOps.Add: {
+          this.editor.addLine(lineNumber, lineOp.addedBuff);
+          lineNumber++;
+        } break;
+        case LineOps.Update: {
+          this.editor.updateLine(lineNumber, lineOp.postUpdateBuff);
+          lineNumber++;
+        } break;
+        case LineOps.Remove: {
+          this.editor.removeLine(lineNumber);
+        } break;
+      }
+    }
+  }
+
+  private revertLinesOps(startLine: number, lineOps: LineOpType[]): void {
+    let lineNumber = startLine;
+
+    // TODO: group similar sequencial operations and execute them together
+    for(const lineOp of lineOps) {
+      switch(lineOp.type) {
+        case LineOps.Add: {
+          this.editor.removeLine(lineNumber);
+        } break;
+        case LineOps.Update: {
+          this.editor.updateLine(lineNumber, lineOp.preUpdateBuff);
+          lineNumber++;
+        } break;
+        case LineOps.Remove: {
+          this.editor.addLine(lineNumber, lineOp.removedBuff);
+          lineNumber++;
+        } break;
+      }
+    }
+  }
+
   public undo(): void {
     if(this.cursor > 0) {
+      this.editor.saveTypedBuffer();
+
       this.cursor--;
       const undoItem = this.array[this.cursor];
       const startLine = undoItem.topLine + 1;
-      this.editor.revertLinesOps(startLine, undoItem.linesOps);
-      this.editor.updateCursorPos(undoItem.oldCursorPos);
+      this.revertLinesOps(startLine, undoItem.linesOps);
+
+      const cursorPos = undoItem.oldCursorPos;
+      this.editor.cursor.setPos(cursorPos.x, cursorPos.y);
     }
   }
 
@@ -33,8 +79,11 @@ export default class UndoManager {
     if(this.cursor < this.array.length) {
       const redoItem = this.array[this.cursor];
       const startLine = redoItem.topLine + 1;
-      this.editor.execLinesOps(startLine, redoItem.linesOps);
-      this.editor.updateCursorPos(redoItem.newCursorPos);
+      this.execLinesOps(startLine, redoItem.linesOps);
+
+      const cursorPos = redoItem.newCursorPos;
+      this.editor.cursor.setPos(cursorPos.x, cursorPos.y);
+
       this.cursor++;
     }
   }
@@ -49,9 +98,13 @@ export default class UndoManager {
   }
 
   public saveAndExec(item: UndoItem): void {
+    this.editor.saveTypedBuffer();
+
     this.save(item);
     const startLine = item.topLine + 1;
-    this.editor.execLinesOps(startLine, item.linesOps);
-    this.editor.updateCursorPos(item.newCursorPos);
+    this.execLinesOps(startLine, item.linesOps);
+
+    const cursorPos = item.newCursorPos;
+    this.editor.cursor.setPos(cursorPos.x, cursorPos.y);
   }
 }
