@@ -19,8 +19,8 @@ class SelectableNewLine extends Trait {
   public getCursorPos(mdNode: MDNode, selNode: Node, _: number): CursorPos | undefined {
     if(mdNode.getHTMLEl().isSameNode(selNode)) {
       return {
-        col: mdNode.getStartCol(),
-        line: mdNode.getStartLine(),
+        col: mdNode.getEndCol(),
+        line: mdNode.getEndLine(),
       };
     }
   }
