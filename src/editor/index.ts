@@ -82,6 +82,11 @@ export default class Editor {
     this.emitCursorUpdate();
   }
 
+  public updateCursorSelection(start: CursorPos, end: CursorPos): void {
+    this.cursor.setSelection(start, end);
+    this.emitCursorUpdate();
+  }
+
   private emitCursorUpdate(): void {
     this.tree.onCursorUpdate(this.cursor);
   }

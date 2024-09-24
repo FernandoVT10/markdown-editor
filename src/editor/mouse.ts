@@ -1,4 +1,5 @@
 import Editor from "./index";
+import { CursorPos } from "../cursor";
 
 class Mouse {
   private editor: Editor;
@@ -23,22 +24,34 @@ class Mouse {
       || selection.focusOffset !== this.prevSelection.focusOffset;
   }
 
-  private handleSelection(selection: Selection): void {
-    if(selection.isCollapsed && this.hasSelectionChange(selection)) {
-      const selNode = selection.focusNode as Node;
-      const offset = selection.focusOffset;
+  private handlePointSelection(selection: Selection): void {
+    const selNode = selection.focusNode as Node;
+    const offset = selection.focusOffset;
 
-      const cursorPos = this.editor.tree.getCursorPos(selNode, offset);
+    const cursorPos = this.editor.tree.getCursorPos(selNode, offset);
 
-      if(cursorPos) {
-        this.editor.updateCursorPos(cursorPos);
+    if(cursorPos) {
+      this.editor.updateCursorPos(cursorPos);
+    }
+  }
+
+  private handleRectangleSelection(selection: Selection): void {
+    const startNode = selection.anchorNode as Node;
+    const startOffset = selection.anchorOffset;
+    const endNode = selection.focusNode as Node;
+    const endOffset = selection.focusOffset;
+
+    const startPos = this.editor.tree.getCursorPos(startNode, startOffset);
+    const endPos = this.editor.tree.getCursorPos(endNode, endOffset);
+
+    if(startPos !== undefined && endPos !== undefined) {
+      // the selection in the browser can be made backwards
+      if(startPos.line > endPos.line || (startPos.line === endPos.line && startPos.col > endPos.col)) {
+        this.editor.updateCursorSelection(endPos, startPos);
+      } else {
+        this.editor.updateCursorSelection(startPos, endPos);
       }
     }
-
-    this.prevSelection = {
-      focusNode: selection.focusNode as Node,
-      focusOffset: selection.focusOffset,
-    };
   }
 
   private handleImageSelection(target: HTMLElement): void {
@@ -60,8 +73,18 @@ class Mouse {
   private setupHandlers(container: HTMLElement): void {
     document.addEventListener("selectionchange", () => {
       const selection = window.getSelection();
+      if(!selection) return;
 
-      if(selection) this.handleSelection(selection);
+      if(selection.isCollapsed && this.hasSelectionChange(selection)) {
+        this.handlePointSelection(selection);
+      } else if(!selection.isCollapsed) {
+        this.handleRectangleSelection(selection);
+      }
+
+      this.prevSelection = {
+        focusNode: selection.focusNode as Node,
+        focusOffset: selection.focusOffset,
+      };
     });
 
     container.addEventListener("mousedown", e => {

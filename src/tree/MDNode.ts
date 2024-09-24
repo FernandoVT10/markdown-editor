@@ -1,7 +1,48 @@
 import Trait from "./trait";
-import Cursor, { CursorPos } from "../cursor";
-import { isCursorPosInRange } from "../utils";
-import { TokenRange, Token } from "../tokens";
+import Cursor, { CursorPos, CursorSelection } from "../cursor";
+import { TokenRange, Token, MDRange } from "../tokens";
+
+function isPointInRange(point: number, range: MDRange): boolean {
+  return point >= range[0] && point <= range[1];
+}
+
+// NOTE: maybe this algorithm could be better written
+function isCursorPosInRange(cursor: CursorPos, range: TokenRange): boolean {
+  const { start, end } = range;
+
+  if(!isPointInRange(cursor.line, [start.line, end.line])) {
+    return false;
+  } else if(start.line === end.line) {
+    // if the range is just in a single line, we only need to check if the cursor is inside the columns
+    return isPointInRange(cursor.col, [start.col, end.col]);
+  } else if(cursor.line === start.line) {
+    return cursor.col >= start.col;
+  } else if(cursor.line === end.line) {
+    return cursor.col <= end.col;
+  } else {
+    return true;
+  }
+}
+
+// checks if the cursor's selection is colliding with the range
+function isCurSelInRange(sel: CursorSelection, range: TokenRange): boolean {
+  // this lines checks if the selection and range share lines
+  if(!(sel.start.line <= range.end.line && sel.end.line >= range.start.line)) {
+    return false;
+  }
+
+  if(sel.start.line === range.end.line) {
+    // if the start line of the selection is the same as the end line of the range
+    // we return true if the selection's start column is less or equal than range's end column
+    return sel.start.col <= range.end.col;
+  } else if(sel.end.line === range.start.line) {
+    // either way if the selection's end line is the same as the range's start line
+    // we return true if the selection's end column is greater or equal than range's start column
+    return sel.end.col >= range.start.col;
+  }
+
+  return true;
+}
 
 export type TagName = keyof HTMLElementTagNameMap;
 
@@ -55,9 +96,7 @@ export default abstract class MDNode {
     if(cursor.isCollapsed()) {
       return isCursorPosInRange(cursor.getPos(), this.getRange());
     } else {
-      // TODO: write this part...
-      console.error("Cursor selection is not supported yet.");
-      return false;
+      return isCurSelInRange(cursor.getSelection() as CursorSelection, this.getRange());
     }
   }
 

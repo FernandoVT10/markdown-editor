@@ -68,11 +68,11 @@ export default class Cursor {
 
   public goLeft(): void {
     if(this.pos.col > 0) {
-      this.pos.col--;
+      this.setCol(this.pos.col - 1);
     } else {
       if(this.pos.line > 0) {
-        this.pos.line--;
-        this.pos.col = this.getLineLen(this.pos.line);
+        this.setLine(this.pos.line - 1);
+        this.setCol(this.getLineLen(this.pos.line));
       }
     }
 
@@ -81,12 +81,12 @@ export default class Cursor {
 
   public goRight(): void {
     if(this.pos.col < this.getLineLen(this.pos.line)) {
-      this.pos.col++;
+      this.setCol(this.pos.col + 1);
     } else {
       const bufLen = this.editor.buffer.length;
       if(this.pos.line < bufLen - 1) {
-        this.pos.line++;
-        this.pos.col = 0;
+        this.setLine(this.pos.line + 1);
+        this.setCol(0);
       }
     }
 
@@ -96,19 +96,20 @@ export default class Cursor {
   public goDown(): void {
     const bufLen = this.editor.buffer.length;
     if(this.pos.line < bufLen - 1) {
-      this.pos.line++;
+      this.setLine(this.pos.line + 1);
 
       const lineLen = this.getLineLen(this.pos.line);
-      this.pos.col = Math.min(this.prevColPos, lineLen);
+      this.setCol(Math.min(this.prevColPos, lineLen));
     }
   }
 
   public goUp(): void {
     if(this.pos.line > 0) {
-      this.pos.line--;
+      this.setLine(this.pos.line - 1);
 
       const lineLen = this.getLineLen(this.pos.line);
-      this.pos.col = Math.min(this.prevColPos, lineLen);
+
+      this.setCol(Math.min(this.prevColPos, lineLen));
     }
   }
 
