@@ -1,4 +1,6 @@
-import Cursor, { CursorPos } from "../cursor";
+import Cursor, { CursorPos, CursorSelection } from "../cursor";
+
+import { LineOpType } from "../lineOps";
 
 import Lexer from "../lexer";
 import Tree from "../tree";
@@ -34,10 +36,6 @@ export default class Editor {
   private typingState: TypingState = {
     isTyping: false,
   };
-
-  private isMouseBtnPressed = false;
-  private mouseStartedAtImg = false;
-  private selectionWasCollapsed = true;
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -241,51 +239,50 @@ export default class Editor {
     }
   }
 
-  // private removeSelection(): void {
-  //   const selection = this.cursor.getSelection();
-  //
-  //   if(!selection) return;
-  //   const { startPos, endPos } = selection;
-  //   const linesOps: LineOpType[] = [];
-  //
-  //   if(startPos.y === endPos.y) {
-  //     const line = startPos.y;
-  //     const bufLine = this.buffer[line];
-  //     const leftPart = bufLine.slice(0, startPos.x);
-  //     const rightPart = bufLine.slice(endPos.x);
-  //     linesOps.push(updateLineOp(bufLine, leftPart + rightPart));
-  //   } else {
-  //     const startLine = startPos.y;
-  //     const endLine = endPos.y;
-  //
-  //     const oldBuff = this.buffer[startLine];
-  //
-  //     const startBuf = this.buffer[startLine].slice(0, startPos.x);
-  //     const endBuf = this.buffer[endLine].slice(endPos.x);
-  //     const updatedBuff = startBuf + endBuf;
-  //
-  //     linesOps.push(updateLineOp(oldBuff, updatedBuff));
-  //
-  //     // remove all lines at the middle of the selection
-  //     if(endPos.y > startPos.y + 1) {
-  //       for(let line = startPos.y + 1; line < endPos.y; line++) {
-  //         linesOps.push(removeLineOp(this.buffer[line]));
-  //       }
-  //     }
-  //
-  //     const removedBuff = this.buffer[endLine];
-  //     linesOps.push(removeLineOp(removedBuff));
-  //   }
-  //
-  //   const topLine = startPos.y - 1;
-  //
-  //   this.undoManager.saveAndExec({
-  //     linesOps,
-  //     topLine,
-  //     oldCursorPos: endPos,
-  //     newCursorPos: startPos,
-  //   });
-  // }
+
+  private removeSelection(): void {
+    if(this.cursor.isCollapsed()) return;
+
+    const { start, end } = this.cursor.getSelection() as CursorSelection;
+
+    const linesOps: LineOpType[] = [];
+
+    if(start.line === end.line) {
+      // removes single line selection
+      const line = start.line;
+      const bufLine = this.buffer[line];
+      const leftPart = bufLine.slice(0, start.col);
+      const rightPart = bufLine.slice(end.col);
+      linesOps.push(updateLineOp(bufLine, leftPart + rightPart));
+    } else {
+      const startLine = start.line;
+      const endLine = end.line;
+
+      const oldBuff = this.buffer[startLine];
+
+      const startBuf = this.buffer[startLine].slice(0, start.col);
+      const endBuf = this.buffer[endLine].slice(end.col);
+      const updatedBuff = startBuf + endBuf;
+
+      linesOps.push(updateLineOp(oldBuff, updatedBuff));
+
+      // remove all lines below the first line of the selection
+      if(end.line > start.line + 1) {
+        for(let line = startLine + 1; line <= endLine; line++) {
+          linesOps.push(removeLineOp(this.buffer[line]));
+        }
+      }
+    }
+
+    const topLine = start.line - 1;
+
+    this.undoManager.saveAndExec({
+      linesOps,
+      topLine,
+      oldCursorPos: end,
+      newCursorPos: start,
+    });
+  }
 
   private setupKeyboard(): void {
     this.container.addEventListener("keydown", (e) => {
@@ -323,6 +320,8 @@ export default class Editor {
           this.emitCursorUpdate();
           break;
         case "Backspace": {
+          this.removeSelection();
+
           if(e.ctrlKey) {
             this.removeAlnumSequence();
           } else {
@@ -333,10 +332,12 @@ export default class Editor {
           this.updateTree();
         } break;
         case "Enter": {
+          this.removeSelection();
           this.addNewLine();
           this.updateTree();
         } break;
         case "Tab": {
+          this.removeSelection();
           this.addChar("\t");
           this.updateTree();
         } break;
@@ -344,6 +345,7 @@ export default class Editor {
           const char = e.key;
 
           if(char.length === 1) {
+            this.removeSelection();
             this.initTyping(this.cursor.getLine());
             this.addChar(char);
             this.updateTree();
@@ -352,53 +354,4 @@ export default class Editor {
       }
     });
   }
-
-    // document.addEventListener("selectionchange", () => {
-    //   const selection = window.getSelection();
-    //   if(!selection) return;
-    //
-    //   if(selection.isCollapsed && (this.isMouseBtnPressed || !this.selectionWasCollapsed)) {
-    //     this.isMouseBtnPressed = false;
-    //     this.selectionWasCollapsed = true;
-    //
-    //     const selNode = selection.focusNode;
-    //     const offset = selection.focusOffset;
-    //     if(!selNode) return;
-    //
-    //     const newPos = this.nodesTree.getCursorPos(selNode, offset);
-    //
-    //     if(newPos) {
-    //       this.cursor.setPos(newPos.x, newPos.y);
-    //       this.updateTreeCursor();
-    //     }
-    //   } else if(!selection.isCollapsed) {
-    //     const startNode = selection.anchorNode;
-    //     const startOffset = selection.anchorOffset;
-    //     const endNode = selection.focusNode;
-    //     const endOffset = selection.focusOffset;
-    //
-    //     let startPos: CursorPos | undefined;
-    //     if(startNode) {
-    //       startPos = this.nodesTree.getCursorPos(startNode, startOffset);
-    //     }
-    //
-    //     let endPos: CursorPos | undefined;
-    //     if(endNode) {
-    //       endPos = this.nodesTree.getCursorPos(endNode, endOffset);
-    //     }
-    //
-    //     if(startPos !== undefined && endPos !== undefined) {
-    //       // the selection in the browser can be made backwards
-    //       if(startPos.y > endPos.y || (startPos.y === endPos.y && startPos.x > endPos.x)) {
-    //         this.cursor.setSelection(endPos, startPos);
-    //       } else {
-    //         this.cursor.setSelection(startPos, endPos);
-    //       }
-    //
-    //       this.updateTreeCursor();
-    //     }
-    //
-    //     this.selectionWasCollapsed = false;
-    //   }
-    // });
 }
