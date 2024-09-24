@@ -55,7 +55,6 @@ export function parseTokens(tokens: Token[]): MDNode[] {
   const resNodes: any[] = [];
 
   for(const [_i, token] of tokens.entries()) {
-    // TODO: only add new lines when there are 2 or more new lines together
     resNodes.push(parseToken(token));
   }
 
