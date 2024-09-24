@@ -352,13 +352,16 @@ export default class Lexer {
           }
         } break;
         case "\n": {
-          tokens.push({
-            type: Types.NewLine,
-            range: {
-              start: { line: this.curLine, col: startCol },
-              end: { line: this.curLine + 1, col: 0 },
-            },
-          });
+          if(this.peekChar() === "\n" || this.isBufferEnd()) {
+            tokens.push({
+              type: Types.NewLine,
+              range: {
+                start: { line: this.curLine, col: startCol },
+                end: { line: this.curLine + 1, col: 0 },
+              },
+            });
+          }
+
           this.curLine++;
           this.curCol = 0;
         } break;

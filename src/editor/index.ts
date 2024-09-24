@@ -103,8 +103,6 @@ export default class Editor {
   private addChar(char: string): void {
     if(char.length > 1) return;
 
-    // if(!this.cursor.isCollapsed()) this.removeSelection();
-
     const { col, line } = this.cursor.getPos();
 
     const bufLine = this.buffer[line];
@@ -138,9 +136,6 @@ export default class Editor {
   }
 
   private removeChar(): void {
-    // if(!this.cursor.isCollapsed())
-    //   return this.removeSelection();
-
     const { col, line } = this.cursor.getPos();
 
     if(col === 0 && line === 0) return;
@@ -184,9 +179,6 @@ export default class Editor {
   }
 
   private removeAlnumSequence(): void {
-    // if(!this.cursor.isCollapsed())
-    //   return this.removeSelection();
-
     const { col, line } = this.cursor.getPos();
 
     const bufLine = this.buffer[line];
