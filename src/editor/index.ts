@@ -5,6 +5,7 @@ import Tree from "../tree";
 import UndoManager from "./undoManager";
 import Clipboard from "./clipboard";
 import Debug from "./debug";
+import Mouse from "./mouse";
 
 import {
   addLineOp,
@@ -27,8 +28,7 @@ export default class Editor {
   public buffer: MDBuffer = [];
   public cursor: Cursor;
   public container: Container;
-
-  private tree: Tree;
+  public tree: Tree;
 
   public undoManager: UndoManager;
   private typingState: TypingState = {
@@ -50,9 +50,10 @@ export default class Editor {
     Clipboard.setup(this);
     Debug.setup(this);
 
+    new Mouse(this);
+
     this.setupKeyboard();
-    // this.setupMouse();
-    // this.setupSelection();
+    this.setupMouse();
   }
 
   public addLine(line: number, text: string): void {
@@ -77,8 +78,12 @@ export default class Editor {
     this.emitCursorUpdate();
   }
 
+  public updateCursorPos(cursorPos: CursorPos): void {
+    this.cursor.setPos(cursorPos);
+    this.emitCursorUpdate();
+  }
+
   private emitCursorUpdate(): void {
-    // TODO: make this better
     this.tree.onCursorUpdate(this.cursor);
   }
 
@@ -344,91 +349,91 @@ export default class Editor {
     });
   }
 
-  // private setupMouse(): void {
-  //   this.container.addEventListener("mousedown", e => {
-  //     this.saveTypedBuffer();
-  //     this.isMouseBtnPressed = true;
-  //
-  //     const target = e.target as HTMLElement;
-  //     if(target.tagName.toLowerCase() === "img") {
-  //       this.mouseStartedAtImg = true;
-  //     }
-  //   });
-  //
-  //   this.container.addEventListener("mouseup", e => {
-  //     this.isMouseBtnPressed = false;
-  //
-  //     const selection = window.getSelection();
-  //     if(!selection) return;
-  //
-  //     const target = e.target as HTMLElement;
-  //
-  //     // This sets the cursor on the image markdown text
-  //     // when an image is clicked
-  //     if((selection.isCollapsed || this.mouseStartedAtImg)
-  //       && target.tagName === "IMG"
-  //       && target.parentNode
-  //     ) {
-  //       let newCursorPos = this.nodesTree.getCursorPos(target.parentNode, 0);
-  //
-  //       if(newCursorPos) {
-  //         this.cursor.setPos(newCursorPos.x, newCursorPos.y);
-  //         this.updateTreeCursor();
-  //       }
-  //     }
-  //
-  //     this.mouseStartedAtImg = false;
-  //   });
-  // }
-  //
-  // private setupSelection() {
-  //   document.addEventListener("selectionchange", () => {
-  //     const selection = window.getSelection();
-  //     if(!selection) return;
-  //
-  //     if(selection.isCollapsed && (this.isMouseBtnPressed || !this.selectionWasCollapsed)) {
-  //       this.isMouseBtnPressed = false;
-  //       this.selectionWasCollapsed = true;
-  //
-  //       const selNode = selection.focusNode;
-  //       const offset = selection.focusOffset;
-  //       if(!selNode) return;
-  //
-  //       const newPos = this.nodesTree.getCursorPos(selNode, offset);
-  //
-  //       if(newPos) {
-  //         this.cursor.setPos(newPos.x, newPos.y);
-  //         this.updateTreeCursor();
-  //       }
-  //     } else if(!selection.isCollapsed) {
-  //       const startNode = selection.anchorNode;
-  //       const startOffset = selection.anchorOffset;
-  //       const endNode = selection.focusNode;
-  //       const endOffset = selection.focusOffset;
-  //
-  //       let startPos: CursorPos | undefined;
-  //       if(startNode) {
-  //         startPos = this.nodesTree.getCursorPos(startNode, startOffset);
-  //       }
-  //
-  //       let endPos: CursorPos | undefined;
-  //       if(endNode) {
-  //         endPos = this.nodesTree.getCursorPos(endNode, endOffset);
-  //       }
-  //
-  //       if(startPos !== undefined && endPos !== undefined) {
-  //         // the selection in the browser can be made backwards
-  //         if(startPos.y > endPos.y || (startPos.y === endPos.y && startPos.x > endPos.x)) {
-  //           this.cursor.setSelection(endPos, startPos);
-  //         } else {
-  //           this.cursor.setSelection(startPos, endPos);
-  //         }
-  //
-  //         this.updateTreeCursor();
-  //       }
-  //
-  //       this.selectionWasCollapsed = false;
-  //     }
-  //   });
-  // }
+  private setupMouse(): void {
+    // this.container.addEventListener("mousedown", e => {
+    //   this.saveTypedBuffer();
+    //   this.isMouseBtnPressed = true;
+    //
+    //   const target = e.target as HTMLElement;
+    //   if(target.tagName.toLowerCase() === "img") {
+    //     this.mouseStartedAtImg = true;
+    //   }
+    // });
+
+    // this.container.addEventListener("mouseup", e => {
+    //   this.isMouseBtnPressed = false;
+    //
+    //   console.log("mouse", window.getSelection());
+    //
+    //   const selection = window.getSelection();
+    //   if(!selection) return;
+    //
+    //   const target = e.target as HTMLElement;
+    //
+    //   // This sets the cursor on the image markdown text
+    //   // when an image is clicked
+    //   if((selection.isCollapsed || this.mouseStartedAtImg)
+    //     && target.tagName === "IMG"
+    //     && target.parentNode
+    //   ) {
+    //     let newCursorPos = this.tree.getCursorPos(target.parentNode, 0);
+    //
+    //     if(newCursorPos) {
+    //       this.cursor.setPos(newCursorPos);
+    //       this.emitCursorUpdate();
+    //     }
+    //   }
+    //
+    //   this.mouseStartedAtImg = false;
+    // });
+  }
+
+    // document.addEventListener("selectionchange", () => {
+    //   const selection = window.getSelection();
+    //   if(!selection) return;
+    //
+    //   if(selection.isCollapsed && (this.isMouseBtnPressed || !this.selectionWasCollapsed)) {
+    //     this.isMouseBtnPressed = false;
+    //     this.selectionWasCollapsed = true;
+    //
+    //     const selNode = selection.focusNode;
+    //     const offset = selection.focusOffset;
+    //     if(!selNode) return;
+    //
+    //     const newPos = this.nodesTree.getCursorPos(selNode, offset);
+    //
+    //     if(newPos) {
+    //       this.cursor.setPos(newPos.x, newPos.y);
+    //       this.updateTreeCursor();
+    //     }
+    //   } else if(!selection.isCollapsed) {
+    //     const startNode = selection.anchorNode;
+    //     const startOffset = selection.anchorOffset;
+    //     const endNode = selection.focusNode;
+    //     const endOffset = selection.focusOffset;
+    //
+    //     let startPos: CursorPos | undefined;
+    //     if(startNode) {
+    //       startPos = this.nodesTree.getCursorPos(startNode, startOffset);
+    //     }
+    //
+    //     let endPos: CursorPos | undefined;
+    //     if(endNode) {
+    //       endPos = this.nodesTree.getCursorPos(endNode, endOffset);
+    //     }
+    //
+    //     if(startPos !== undefined && endPos !== undefined) {
+    //       // the selection in the browser can be made backwards
+    //       if(startPos.y > endPos.y || (startPos.y === endPos.y && startPos.x > endPos.x)) {
+    //         this.cursor.setSelection(endPos, startPos);
+    //       } else {
+    //         this.cursor.setSelection(startPos, endPos);
+    //       }
+    //
+    //       this.updateTreeCursor();
+    //     }
+    //
+    //     this.selectionWasCollapsed = false;
+    //   }
+    // });
 }

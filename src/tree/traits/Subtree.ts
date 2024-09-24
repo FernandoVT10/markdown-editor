@@ -27,7 +27,7 @@ export default class Subtree extends Trait {
     }
   }
 
-  getCursorPos(_: MDNode, selNode: Node, offset: number): CursorPos | undefined {
+  getCursorPos(_: MDNode | null, selNode: Node, offset: number): CursorPos | undefined {
     for(const node of this.nodes) {
       const pos = node.getCursorPos(selNode, offset);
       if(pos !== undefined) return pos;
