@@ -53,7 +53,6 @@ export default class Editor {
     new Mouse(this);
 
     this.setupKeyboard();
-    this.setupMouse();
   }
 
   public addLine(line: number, text: string): void {
@@ -347,45 +346,6 @@ export default class Editor {
         } break;
       }
     });
-  }
-
-  private setupMouse(): void {
-    // this.container.addEventListener("mousedown", e => {
-    //   this.saveTypedBuffer();
-    //   this.isMouseBtnPressed = true;
-    //
-    //   const target = e.target as HTMLElement;
-    //   if(target.tagName.toLowerCase() === "img") {
-    //     this.mouseStartedAtImg = true;
-    //   }
-    // });
-
-    // this.container.addEventListener("mouseup", e => {
-    //   this.isMouseBtnPressed = false;
-    //
-    //   console.log("mouse", window.getSelection());
-    //
-    //   const selection = window.getSelection();
-    //   if(!selection) return;
-    //
-    //   const target = e.target as HTMLElement;
-    //
-    //   // This sets the cursor on the image markdown text
-    //   // when an image is clicked
-    //   if((selection.isCollapsed || this.mouseStartedAtImg)
-    //     && target.tagName === "IMG"
-    //     && target.parentNode
-    //   ) {
-    //     let newCursorPos = this.tree.getCursorPos(target.parentNode, 0);
-    //
-    //     if(newCursorPos) {
-    //       this.cursor.setPos(newCursorPos);
-    //       this.emitCursorUpdate();
-    //     }
-    //   }
-    //
-    //   this.mouseStartedAtImg = false;
-    // });
   }
 
     // document.addEventListener("selectionchange", () => {

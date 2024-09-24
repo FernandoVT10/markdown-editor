@@ -8,10 +8,12 @@ class Mouse {
     focusOffset: number;
   };
 
+  private startingTarget?: HTMLElement;
+
   constructor(editor: Editor) {
     this.editor = editor;
 
-    this.setupHandlers();
+    this.setupHandlers(editor.container);
   }
 
   private hasSelectionChange(selection: Selection): boolean {
@@ -39,11 +41,39 @@ class Mouse {
     };
   }
 
-  private setupHandlers(): void {
+  private handleImageSelection(target: HTMLElement): void {
+    const tagName = target.tagName.toLowerCase();
+
+    // This sets the cursor on the markdown text of the image if the click started
+    // on the image and ended on the image
+    if(this.startingTarget?.isSameNode(target) && tagName === "img") {
+      let cursorPos = this.editor.tree.getCursorPos(
+        target.parentNode as Node, 0
+      );
+
+      if(cursorPos) {
+        this.editor.updateCursorPos(cursorPos);
+      }
+    }
+  }
+
+  private setupHandlers(container: HTMLElement): void {
     document.addEventListener("selectionchange", () => {
       const selection = window.getSelection();
 
       if(selection) this.handleSelection(selection);
+    });
+
+    container.addEventListener("mousedown", e => {
+      this.editor.saveTypedBuffer();
+      this.startingTarget = e.target as HTMLElement;
+    });
+
+    container.addEventListener("mouseup", e => {
+      const selection = window.getSelection();
+      if(!selection) return;
+
+      this.handleImageSelection(e.target as HTMLElement);
     });
   }
 }
