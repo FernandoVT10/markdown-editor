@@ -31,10 +31,15 @@ class SyntaxSymbol extends Trait {
     super();
 
     this.symbol = symbol;
+    this.parentEl = parentEl;
     this.startSymbolNode = new Text(symbol, this.createStartRange(range));
     this.endSymbolNode = new Text(symbol, this.createEndRange(range));
 
-    this.parentEl = parentEl;
+    this.parentEl.prepend(this.startSymbolNode.getHTMLEl());
+    this.parentEl.append(this.endSymbolNode.getHTMLEl());
+
+    this.hideStartSymbol();
+    this.hideEndSymbol();
 
     this.opts = {
       addSymbolAtEnd: opts.addSymbolAtEnd,
@@ -44,6 +49,23 @@ class SyntaxSymbol extends Trait {
     if(this.opts.neverHide) {
       this.show();
     }
+  }
+
+
+  private showStartSymbol(): void {
+    this.startSymbolNode.getHTMLEl().classList.remove("display-none");
+  }
+
+  private hideStartSymbol(): void {
+    this.startSymbolNode.getHTMLEl().classList.add("display-none");
+  }
+
+  private showEndSymbol(): void {
+    this.endSymbolNode.getHTMLEl().classList.remove("display-none");
+  }
+
+  private hideEndSymbol(): void {
+    this.endSymbolNode.getHTMLEl().classList.add("display-none");
   }
 
   private createStartRange(range: TokenRange): TokenRange {
@@ -66,14 +88,11 @@ class SyntaxSymbol extends Trait {
     if(opts.addSymbolAtEnd) {
       this.opts.addSymbolAtEnd = true;
 
-      // add the symbol at the end if it hasn't been added
-      const endEl = this.endSymbolNode.getHTMLEl();
-      if(!this.parentEl.contains(endEl)) {
-        this.parentEl.appendChild(endEl);
-      }
+      // make the symbol at the end visible if it wasn't
+      this.endSymbolNode.getHTMLEl().classList.remove("display-none");
     } else {
       this.opts.addSymbolAtEnd = false;
-      this.removeEndSymbol();
+      this.endSymbolNode.getHTMLEl().classList.add("display-none");
     }
 
     if(opts.neverHide) {
@@ -88,17 +107,10 @@ class SyntaxSymbol extends Trait {
     if(this.isShowing) return;
     this.isShowing = true;
 
-    this.parentEl.prepend(this.startSymbolNode.getHTMLEl());
+    this.showStartSymbol();
 
     if(this.opts.addSymbolAtEnd) {
-      this.parentEl.append(this.endSymbolNode.getHTMLEl());
-    }
-  }
-
-  private removeEndSymbol(): void {
-    const endEl = this.endSymbolNode.getHTMLEl();
-    if(this.parentEl.contains(endEl)) {
-      this.parentEl.removeChild(endEl);
+      this.showEndSymbol();
     }
   }
 
@@ -106,12 +118,8 @@ class SyntaxSymbol extends Trait {
     if(!this.isShowing || this.opts.neverHide) return;
     this.isShowing = false;
 
-    const startEl = this.startSymbolNode.getHTMLEl();
-    if(this.parentEl.contains(startEl)) {
-      this.parentEl.removeChild(startEl);
-    }
-
-    this.removeEndSymbol();
+    this.hideStartSymbol();
+    this.hideEndSymbol();
   }
 
   public onCursorUpdate(mdNode: MDNode, cursor: Cursor): void {

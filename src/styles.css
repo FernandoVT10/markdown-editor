@@ -72,6 +72,10 @@ body {
   display: inline-block;
 }
 
+.editor .display-none {
+  display: none;
+}
+
 .tokens-preview {
   display: none;
   width: 30%;
