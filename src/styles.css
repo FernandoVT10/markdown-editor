@@ -68,6 +68,10 @@ body {
   height: fit-content;
 }
 
+.editor .subtree {
+  display: inline-block;
+}
+
 .tokens-preview {
   display: none;
   width: 30%;

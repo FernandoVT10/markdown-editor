@@ -8,16 +8,20 @@ import { BlockTokens } from "../../tokens";
 
 export default class Subtree extends Trait {
   private nodes: MDNode[];
-  private parentEl: HTMLElement;
+  private subtreeContainer: HTMLDivElement;
 
   constructor(nodes: MDNode[], parentEl: HTMLElement) {
     super();
     this.nodes = nodes;
-    this.parentEl = parentEl;
+
+    this.subtreeContainer = document.createElement("div");
+    // TODO: make a better way to handle the creating of elements with classes
+    this.subtreeContainer.classList.add("subtree");
+    parentEl.appendChild(this.subtreeContainer);
 
     // fill parent element with childs' html elements
     for(const node of this.nodes) {
-      this.parentEl.appendChild(node.getHTMLEl());
+      this.subtreeContainer.appendChild(node.getHTMLEl());
     }
   }
 
@@ -45,22 +49,22 @@ export default class Subtree extends Trait {
           this.nodes.splice(diffOp.pos, 0, newNode);
 
           const nextEl = this.nodes[diffOp.pos + 1]?.getHTMLEl();
-          if(nextEl && this.parentEl.contains(nextEl)) {
-            this.parentEl.insertBefore(newNode.getHTMLEl(), nextEl);
+          if(nextEl && this.subtreeContainer.contains(nextEl)) {
+            this.subtreeContainer.insertBefore(newNode.getHTMLEl(), nextEl);
           } else {
-            this.parentEl.appendChild(newNode.getHTMLEl());
+            this.subtreeContainer.appendChild(newNode.getHTMLEl());
           }
         } break;
         case DiffOpsTypes.Delete: {
           const node = this.nodes[diffOp.pos];
-          this.parentEl.removeChild(node.getHTMLEl());
+          this.subtreeContainer.removeChild(node.getHTMLEl());
           this.nodes.splice(diffOp.pos, 1);
         } break;
         case DiffOpsTypes.Replace: {
           const oldNode = this.nodes[diffOp.pos];
           const newNode = parseToken(diffOp.newToken);
 
-          this.parentEl.replaceChild(newNode.getHTMLEl(), oldNode.getHTMLEl());
+          this.subtreeContainer.replaceChild(newNode.getHTMLEl(), oldNode.getHTMLEl());
           this.nodes.splice(diffOp.pos, 1, newNode);
         } break;
         case DiffOpsTypes.SubtreeUpd:
