@@ -297,6 +297,28 @@ export default class Lexer {
     return false;
   }
 
+  private processBlockquote(tokens: Token[]): void {
+    let nestedLevel = 0;
+
+    while(this.peekChar(nestedLevel) === ">") {
+      nestedLevel++;
+    }
+
+    this.advance(nestedLevel);
+
+    const inlineTokens = this.inlineTokens();
+
+    tokens.push({
+      type: Types.Blockquote,
+      range: {
+        start: { line: this.curLine, col: 0 },
+        end: { line: this.curLine, col: this.curCol },
+      },
+      tokens: inlineTokens,
+      nestedLevel,
+    });
+  }
+
   private inlineTokens(predicate?: (c: string, nextC: string) => boolean): Token[] {
     const tokens: Token[] = [];
 
@@ -371,6 +393,9 @@ export default class Lexer {
           if(!this.processRule(c, startCol, tokens)) {
             this.processParagraph(tokens);
           }
+        } break;
+        case ">": {
+          this.processBlockquote(tokens);
         } break;
         default: this.processParagraph(tokens);
       }

@@ -1,6 +1,9 @@
 :root {
   --code-text: hsl(214 48% 70%);
   --strong-text: #79aaeb;
+
+  --blockquote-border: #79aaeb;
+  --blockquote-bg: #11161e;
 }
 
 body {
@@ -112,6 +115,13 @@ strong, i {
 
 img {
   width: 100%;
+}
+
+blockquote {
+  border-left: solid 5px var(--blockquote-border);
+  margin: 0;
+  padding: 10px;
+  background: var(--blockquote-bg);
 }
 
 .cursor-pos {

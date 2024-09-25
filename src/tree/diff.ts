@@ -60,6 +60,9 @@ function areTokensEqual(t1: Token, t2: Token): boolean {
     case Types.Rule: {
       return t1.raw === (t2 as Tokens.Rule).raw;
     }
+    case Types.Blockquote: {
+      return t1.nestedLevel === (t2 as Tokens.Blockquote).nestedLevel;
+    }
     case Types.List: {
       console.error("not implemeted yet");
       return false;

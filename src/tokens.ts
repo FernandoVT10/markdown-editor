@@ -10,6 +10,7 @@ export enum Types {
   Link,
   Image,
   Rule,
+  Blockquote,
   List,
 }
 
@@ -97,6 +98,14 @@ export namespace Tokens {
     raw: string;
   }
 
+
+  export interface Blockquote {
+    type: Types.Blockquote;
+    range: TokenRange;
+    tokens: Token[];
+    nestedLevel: number;
+  }
+
   export interface List {
     type: Types.List;
     range: TokenRange;
@@ -112,6 +121,7 @@ export type BlockTokens = (
   | Tokens.Header
   | Tokens.Paragraph
   | Tokens.List
+  | Tokens.Blockquote
 );
 
 export type Token = (
@@ -126,6 +136,7 @@ export type Token = (
   | Tokens.Link
   | Tokens.Image
   | Tokens.Rule
+  | Tokens.Blockquote
   | Tokens.List);
 
 export function isAParentToken(token: Token): boolean {

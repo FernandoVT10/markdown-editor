@@ -273,6 +273,48 @@ export class Rule extends MDNode {
   }
 }
 
+export class Blockquote extends MDNode {
+  private contentContainer: HTMLDivElement;
+
+  constructor(token: Tokens.Blockquote, nodes: MDNode[]) {
+    super(token.range, "blockquote");
+
+    this.contentContainer = document.createElement("div");
+    this.addTrait(new Subtree(nodes, this.contentContainer));
+
+    const symbol = this.getSymbol(token.nestedLevel);
+    this.addTrait(new SyntaxSymbol(symbol, this.getRange(), this.contentContainer, {
+      neverHide: false,
+      addSymbolAtEnd: false,
+    }));
+
+    this.setNestedQuotes(token.nestedLevel);
+  }
+  
+  private getSymbol(nestedLevel: number): string {
+    return "".padStart(nestedLevel + 1, ">");
+  }
+
+  private setNestedQuotes(nestedLevel: number): void {
+    this.htmlEl.innerHTML = "";
+    let prevEl = this.htmlEl;
+
+    for(let i = 0; i < nestedLevel; i++) {
+      const blockquote = document.createElement("blockquote");
+      prevEl.append(blockquote);
+      prevEl = blockquote;
+    }
+
+    prevEl.appendChild(this.contentContainer);
+  }
+
+  public onTokenUpdate(token: Tokens.Blockquote): void {
+    const symbol = this.getSymbol(token.nestedLevel);
+    this.getTrait<SyntaxSymbol>(SyntaxSymbol).updateSymbol(symbol);
+    this.setNestedQuotes(token.nestedLevel);
+  }
+}
+
 // export class MDList extends MDBlockNode {
 //   constructor(token: Tokens.List, nodes: MDNode[]) {
 //     const { range, marker } = token;
