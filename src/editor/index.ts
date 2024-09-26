@@ -260,10 +260,8 @@ export default class Editor {
       linesOps.push(updateLineOp(oldBuff, updatedBuff));
 
       // remove all lines below the first line of the selection
-      if(end.line > start.line + 1) {
-        for(let line = startLine + 1; line <= endLine; line++) {
-          linesOps.push(removeLineOp(this.buffer[line]));
-        }
+      for(let line = startLine + 1; line <= endLine; line++) {
+        linesOps.push(removeLineOp(this.buffer[line]));
       }
     }
 
