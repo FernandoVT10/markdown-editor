@@ -12,6 +12,8 @@ import {
   MDImage,
   Rule,
   Blockquote,
+  ListItem,
+  List,
 } from "./tree/nodes";
 import { Token, BlockTokens, Types } from "./tokens";
 
@@ -44,13 +46,14 @@ export function parseToken(token: Token): MDNode {
       return new Rule(token);
     case Types.Blockquote:
       return new Blockquote(token, nodes);
+    case Types.ListItem:
+      return new ListItem(token, nodes);
+    case Types.List:
+      return new List(token, nodes);
     default: {
       // TODO: Remove this
       return new Text(token.type.toString(), token.range);
     }
-    // case Types.List:
-    //   resNodes.push(new MDList(token, nodes));
-    //   break;
    }
 }
 

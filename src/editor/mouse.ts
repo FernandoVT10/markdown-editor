@@ -1,5 +1,4 @@
 import Editor from "./index";
-import { CursorPos } from "../cursor";
 
 class Mouse {
   private editor: Editor;
@@ -60,9 +59,21 @@ class Mouse {
     // This sets the cursor on the markdown text of the image if the click started
     // on the image and ended on the image
     if(this.startingTarget?.isSameNode(target) && tagName === "img") {
-      let cursorPos = this.editor.tree.getCursorPos(
+      const cursorPos = this.editor.tree.getCursorPos(
         target.parentNode as Node, 0
       );
+
+      if(cursorPos) {
+        this.editor.updateCursorPos(cursorPos);
+      }
+    }
+  }
+
+  private handleListMarkerSel(target: HTMLElement) {
+    const tagName = target.tagName.toLowerCase();
+
+    if(tagName === "span") {
+      const cursorPos = this.editor.tree.getCursorPos(target, 0);
 
       if(cursorPos) {
         this.editor.updateCursorPos(cursorPos);
@@ -97,6 +108,7 @@ class Mouse {
       if(!selection) return;
 
       this.handleImageSelection(e.target as HTMLElement);
+      this.handleListMarkerSel(e.target as HTMLSpanElement);
     });
   }
 }

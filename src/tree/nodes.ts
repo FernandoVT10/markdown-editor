@@ -5,6 +5,7 @@ import SyntaxSymbol from "./traits/SyntaxSymbol";
 import RawContent from "./traits/RawContent";
 import RawMarkdown from "./traits/RawMarkdown";
 import SelectableNewLine from "./traits/SelectableNewLine";
+import ListMark from "./traits/ListMark";
 
 import { TagName } from "./MDNode";
 import { Token, TokenRange, Tokens } from "../tokens";
@@ -315,17 +316,28 @@ export class Blockquote extends MDNode {
   }
 }
 
-// export class MDList extends MDBlockNode {
-//   constructor(token: Tokens.List, nodes: MDNode[]) {
-//     const { range, marker } = token;
-//     super(range, nodes, "div");
-//
-//     this.addTrait(new MDSyntax({
-//       htmlEl: this.htmlEl,
-//       mdMark: marker,
-//       range: this.getRange(),
-//       closeBlock: false,
-//       keepActive: false,
-//     }));
-//   }
-// }
+export class ListItem extends MDNode {
+  // private markerNode: Text;
+
+  constructor(token: Tokens.ListItem, nodes: MDNode[]) {
+    super(token.range, "li");
+
+    this.addTrait(new Subtree(nodes, this.htmlEl));
+
+    this.addTrait(new ListMark(token.marker, this.getRange(), this.htmlEl));
+  }
+
+  public onTokenUpdate(token: Token): void {
+  }
+}
+
+export class List extends MDNode {
+  constructor(token: Tokens.List, nodes: MDNode[]) {
+    super(token.range, "ul");
+
+    this.addTrait(new Subtree(nodes, this.htmlEl));
+  }
+
+  public onTokenUpdate(token: Token): void {
+  }
+}

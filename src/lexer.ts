@@ -319,6 +319,61 @@ export default class Lexer {
     });
   }
 
+  private processList(firstChar: string, tokens: Token[]): boolean {
+    if(!this.match(" ")) return false;
+    const startingLine = this.curLine;
+
+    const listItems: Tokens.ListItem[] = [];
+
+    const listItemTokens = this.inlineTokens();
+    listItems.push({
+      type: Types.ListItem,
+      range: {
+        start: { line: this.curLine, col: 0 },
+        end: { line: this.curLine, col: this.curCol },
+      },
+      marker: firstChar,
+      tokens: listItemTokens,
+    });
+
+    while(
+      this.peekChar() === "\n"
+      && (this.peekChar(1) === "-" || this.peekChar(1) === "*")
+      && this.peekChar(2) === " "
+    ) {
+      // skip the new line and the marker
+      this.advance(2);
+
+      // increase the line because of the "\n"
+      this.curLine++;
+
+      // set the column to 1, skipping only the marker
+      this.curCol = 1;
+
+      const listItemTokens = this.inlineTokens();
+      listItems.push({
+        type: Types.ListItem,
+        range: {
+          start: { line: this.curLine, col: 0 },
+          end: { line: this.curLine, col: this.curCol },
+        },
+        marker: firstChar,
+        tokens: listItemTokens,
+      });
+    }
+
+    tokens.push({
+      type: Types.List,
+      range: {
+        start: { line: startingLine, col: 0 },
+        end: { line: this.curLine, col: this.curCol }
+      },
+      tokens: listItems,
+    });
+
+    return true;
+  }
+
   private inlineTokens(predicate?: (c: string, nextC: string) => boolean): Token[] {
     const tokens: Token[] = [];
 
@@ -390,7 +445,7 @@ export default class Lexer {
         case "_":
         case "-":
         case "*": {
-          if(!this.processRule(c, startCol, tokens)) {
+          if(!(c !== "_" && this.processList(c, tokens)) && !this.processRule(c, startCol, tokens)) {
             this.processParagraph(tokens);
           }
         } break;

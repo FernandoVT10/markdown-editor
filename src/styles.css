@@ -132,6 +132,25 @@ blockquote {
   background: var(--blockquote-bg);
 }
 
+ul {
+  margin: 0;
+  padding-left: 10px;
+}
+
+li {
+  display: flex;
+  align-items: center;
+  list-style: none;
+}
+
+li .list-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: white;
+}
+
 .cursor-pos {
   padding: 10px 20px;
   position: fixed;
@@ -144,4 +163,3 @@ blockquote {
 .cursor-pos .number {
   color: #79aaeb;
 }
-

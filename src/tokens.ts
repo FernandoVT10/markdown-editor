@@ -11,6 +11,7 @@ export enum Types {
   Image,
   Rule,
   Blockquote,
+  ListItem,
   List,
 }
 
@@ -106,11 +107,17 @@ export namespace Tokens {
     nestedLevel: number;
   }
 
-  export interface List {
-    type: Types.List;
+  export interface ListItem {
+    type: Types.ListItem;
     range: TokenRange;
     marker: string;
     tokens: Token[];
+  }
+
+  export interface List {
+    type: Types.List;
+    range: TokenRange;
+    tokens: ListItem[];
   }
 }
 
@@ -120,8 +127,9 @@ export type BlockTokens = (
   | Tokens.Italic
   | Tokens.Header
   | Tokens.Paragraph
-  | Tokens.List
   | Tokens.Blockquote
+  | Tokens.ListItem
+  | Tokens.List
 );
 
 export type Token = (
@@ -137,7 +145,9 @@ export type Token = (
   | Tokens.Image
   | Tokens.Rule
   | Tokens.Blockquote
-  | Tokens.List);
+  | Tokens.ListItem
+  | Tokens.List
+);
 
 export function isAParentToken(token: Token): boolean {
   return Array.isArray((token as BlockTokens).tokens);

@@ -63,9 +63,12 @@ function areTokensEqual(t1: Token, t2: Token): boolean {
     case Types.Blockquote: {
       return t1.nestedLevel === (t2 as Tokens.Blockquote).nestedLevel;
     }
+    case Types.ListItem: {
+      t2 = t2 as Tokens.ListItem;
+      return t1.marker === t2.marker;
+    }
     case Types.List: {
-      console.error("not implemeted yet");
-      return false;
+      return true;
     }
     default:
       return false;
