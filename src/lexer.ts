@@ -158,8 +158,13 @@ export default class Lexer {
 
     const finalC = this.peekChar(level);
     if((finalC === " " || finalC === "\0") && level < HEADER_MAX_LEVEL) {
-      // skip all the "#" and the space or "\0" characters
-      this.advance(level + 1);
+      if(finalC === "\0") {
+        // skip all the "#"
+        this.advance(level);
+      } else {
+        // skip all the "#" and the space
+        this.advance(level + 1);
+      }
       const inlineTokens = this.inlineTokens();
 
       tokens.push({
