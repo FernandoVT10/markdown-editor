@@ -60,7 +60,9 @@ export default class Lexer {
     while(!this.isBufferEnd() && !this.match("\n") && cond(c = this.advanceWithChar()));
   }
 
-  private processCode(startCol: number, tokens: Token[]): void {
+  private processCode(startCol: number, tokens: Token[]): boolean {
+    if(this.match("`") || this.isBufferEnd()) return false;
+
     let content = "";
     let wasClosed = false;
 
@@ -84,6 +86,8 @@ export default class Lexer {
       content,
       wasClosed,
     });
+
+    return true;
   }
 
   private processBold(startCol: number, tokens: Token[]): void {
@@ -460,7 +464,9 @@ export default class Lexer {
 
       switch(c) {
         case "`": {
-          this.processCode(startCol, tokens);
+          if(!this.processCode(startCol, tokens)) {
+            this.processText(c, this.curLine, startCol, tokens);
+          }
         } break;
         case "*": {
           if(this.advanceIfMatch("*")) {
