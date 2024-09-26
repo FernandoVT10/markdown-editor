@@ -386,7 +386,10 @@ export default class Lexer {
 
 
   private processOrderedList(firstChar: string, tokens: Token[]): boolean {
-    if(!this.advanceIfMatch(".") || this.peekChar() !== " ") return false;
+    if(this.peekChar() !== "." || this.peekChar(1) !== " ") return false;
+    // skip the dot
+    this.advance();
+
     const startingLine = this.curLine;
 
     const listItems: Tokens.ListItem[] = [];
@@ -491,7 +494,6 @@ export default class Lexer {
     while(!this.isBufferEnd()) {
       const startCol = this.curCol;
       const c = this.advanceWithChar();
-
 
       if(isCharNumber(c) && this.processOrderedList(c, tokens)) {
         continue;
