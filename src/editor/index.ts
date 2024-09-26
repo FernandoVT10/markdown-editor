@@ -160,7 +160,8 @@ export default class Editor {
     const prevLine = line - 1;
     const prevLineBuff = this.buffer[prevLine];
 
-    let updatedBuff = prevLineBuff;
+    // removes the "\n" at the end of the prev line
+    let updatedBuff = prevLineBuff.slice(0, prevLineBuff.length - 1);
 
     if(curLineBuff.length) {
       updatedBuff += curLineBuff;
