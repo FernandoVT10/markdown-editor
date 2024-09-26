@@ -7,81 +7,95 @@ import { TokenRange } from "../../tokens";
 import Cursor, { CursorPos } from "../../cursor";
 
 class ListMark extends Trait {
-  private mdMarkNode: Text;
-  private listMark: HTMLSpanElement;
+  private mark: string;
+  private markNode: Text;
+  private isOrdered: boolean;
+  private listDotEl: HTMLSpanElement;
 
   private isShowing = false;
 
-  constructor(mark: string, range: TokenRange, parentEl: HTMLElement) {
+  constructor(mark: string, isOrdered: boolean, range: TokenRange, parentEl: HTMLElement) {
     super();
-    this.mdMarkNode = new Text(mark, this.getMDMarkRange(range));
+    this.mark = mark;
+    this.markNode = new Text(mark, this.getMarkRange(range, this.mark.length));
+    this.isOrdered = isOrdered;
 
-    this.listMark = document.createElement("span");
-    this.listMark.classList.add("list-dot");
+    this.listDotEl = document.createElement("span");
+    this.listDotEl.classList.add("list-dot");
 
-    this.hideListMark();
-    this.hideMdMark();
+    const markEl = this.markNode.getHTMLEl();
 
-    const mdMarkEl = this.mdMarkNode.getHTMLEl();
-    parentEl.prepend(this.listMark, mdMarkEl);
+    if(this.isOrdered) {
+      this.showMark();
+      parentEl.prepend(markEl);
+    } else {
+      this.hideListDot();
+      this.hideMark();
+      parentEl.prepend(this.listDotEl, markEl);
+    }
   }
 
-  private getMDMarkRange(range: TokenRange): TokenRange {
+  private getMarkRange(range: TokenRange, markLen: number): TokenRange {
     return {
       start: { line: range.start.line, col: range.start.col },
-      end: { line: range.start.line, col: range.start.col + 1 }
+      end: { line: range.start.line, col: range.start.col + markLen }
     };
   }
 
-  private showListMark(): void {
-    this.listMark.classList.remove("display-none");
+  private showListDot(): void {
+    this.listDotEl.classList.remove("display-none");
   }
 
-  private hideListMark(): void {
-    this.listMark.classList.add("display-none");
+  private hideListDot(): void {
+    this.listDotEl.classList.add("display-none");
   }
 
-  private showMdMark(): void {
-    this.mdMarkNode.getHTMLEl().classList.remove("display-none");
+  private showMark(): void {
+    this.markNode.getHTMLEl().classList.remove("display-none");
   }
 
-  private hideMdMark(): void {
-    this.mdMarkNode.getHTMLEl().classList.add("display-none");
+  private hideMark(): void {
+    this.markNode.getHTMLEl().classList.add("display-none");
   }
 
   private show(): void {
-    if(this.isShowing) return;
+    if(this.isShowing || this.isOrdered) return;
     this.isShowing = true;
-    this.showMdMark();
-    this.hideListMark();
+    this.showMark();
+    this.hideListDot();
   }
 
   private hide(): void {
-    if(!this.isShowing) return;
+    if(!this.isShowing || this.isOrdered) return;
     this.isShowing = false;
-    this.hideMdMark();
-    this.showListMark();
+    this.hideMark();
+    this.showListDot();
   }
 
   public onCursorUpdate(mdNode: MDNode, cursor: Cursor): void {
     if(mdNode.isInCursorRange(cursor)) {
       this.show();
-      this.mdMarkNode.onCursorUpdate(cursor);
+      this.markNode.onCursorUpdate(cursor);
     } else {
       this.hide();
     }
   }
 
   public getCursorPos(mdNode: MDNode, selNode: Node, offset: number): CursorPos | undefined {
-    if(this.isShowing) return this.mdMarkNode.getCursorPos(selNode, offset);
+    if(this.isShowing || this.isOrdered) return this.markNode.getCursorPos(selNode, offset);
 
-    if(selNode.isSameNode(this.listMark)) {
+    if(selNode.isSameNode(this.listDotEl)) {
       return { line: mdNode.getStartLine(), col: 1 };
     }
   }
 
   public updateRange(token: Token): void {
-    this.mdMarkNode.setRange(this.getMDMarkRange(token.range));
+    this.markNode.setRange(this.getMarkRange(token.range, this.mark.length));
+  }
+
+  public updateMark(mark: string): void {
+    this.mark = mark;
+    this.markNode.updateText(mark);
   }
 }
 

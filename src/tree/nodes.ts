@@ -317,17 +317,15 @@ export class Blockquote extends MDNode {
 }
 
 export class ListItem extends MDNode {
-  // private markerNode: Text;
-
   constructor(token: Tokens.ListItem, nodes: MDNode[]) {
     super(token.range, "li");
 
     this.addTrait(new Subtree(nodes, this.htmlEl));
-
-    this.addTrait(new ListMark(token.marker, this.getRange(), this.htmlEl));
+    this.addTrait(new ListMark(token.marker, token.ordered, this.getRange(), this.htmlEl));
   }
 
-  public onTokenUpdate(token: Token): void {
+  public onTokenUpdate(token: Tokens.ListItem): void {
+    this.getTrait<ListMark>(ListMark).updateMark(token.marker);
   }
 }
 
@@ -338,6 +336,5 @@ export class List extends MDNode {
     this.addTrait(new Subtree(nodes, this.htmlEl));
   }
 
-  public onTokenUpdate(token: Token): void {
-  }
+  public onTokenUpdate(_: Token): void {}
 }

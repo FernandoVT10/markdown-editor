@@ -1,5 +1,13 @@
 import { Token, Types, Tokens } from "./tokens";
 
+const ZERO_CODE = "0".charCodeAt(0);
+const NINE_CODE = "9".charCodeAt(0);
+
+function isCharNumber(char: string): boolean {
+  const charCode = char.charCodeAt(0);
+  return charCode >= ZERO_CODE && charCode <= NINE_CODE;
+}
+
 const HEADER_MAX_LEVEL = 6;
 
 export default class Lexer {
@@ -319,7 +327,7 @@ export default class Lexer {
     });
   }
 
-  private processList(firstChar: string, tokens: Token[]): boolean {
+  private processUnorderedList(firstChar: string, tokens: Token[]): boolean {
     if(!this.match(" ")) return false;
     const startingLine = this.curLine;
 
@@ -334,6 +342,7 @@ export default class Lexer {
       },
       marker: firstChar,
       tokens: listItemTokens,
+      ordered: false,
     });
 
     while(
@@ -359,6 +368,67 @@ export default class Lexer {
         },
         marker: firstChar,
         tokens: listItemTokens,
+        ordered: false,
+      });
+    }
+
+    tokens.push({
+      type: Types.List,
+      range: {
+        start: { line: startingLine, col: 0 },
+        end: { line: this.curLine, col: this.curCol }
+      },
+      tokens: listItems,
+    });
+
+    return true;
+  }
+
+
+  private processOrderedList(firstChar: string, tokens: Token[]): boolean {
+    if(!this.advanceIfMatch(".") || this.peekChar() !== " ") return false;
+    const startingLine = this.curLine;
+
+    const listItems: Tokens.ListItem[] = [];
+
+    const listItemTokens = this.inlineTokens();
+    listItems.push({
+      type: Types.ListItem,
+      range: {
+        start: { line: this.curLine, col: 0 },
+        end: { line: this.curLine, col: this.curCol },
+      },
+      marker: firstChar + ".",
+      tokens: listItemTokens,
+      ordered: true,
+    });
+
+    while(
+      this.peekChar() === "\n"
+      && isCharNumber(this.peekChar(1))
+      && this.peekChar(2) === "."
+      && this.peekChar(3) === " "
+    ) {
+      const numMarker = this.peekChar(1);
+      // skip the new line, the number, and the dot
+      this.advance(3);
+
+      // increase the line because of the "\n"
+      this.curLine++;
+
+      // set the column to 1, skipping the marker and the dot
+      this.curCol = 2;
+
+      const listItemTokens = this.inlineTokens();
+      listItems.push({
+        type: Types.ListItem,
+        range: {
+          start: { line: this.curLine, col: 0 },
+          end: { line: this.curLine, col: this.curCol },
+        },
+        marker: numMarker + ".",
+        tokens: listItemTokens,
+        ordered: true,
       });
     }
 
@@ -422,6 +492,11 @@ export default class Lexer {
       const startCol = this.curCol;
       const c = this.advanceWithChar();
 
+
+      if(isCharNumber(c) && this.processOrderedList(c, tokens)) {
+        continue;
+      }
+
       switch(c) {
         case "#": {
           if(!this.processHeader(tokens)) {
@@ -445,7 +520,7 @@ export default class Lexer {
         case "_":
         case "-":
         case "*": {
-          if(!(c !== "_" && this.processList(c, tokens)) && !this.processRule(c, startCol, tokens)) {
+          if(!(c !== "_" && this.processUnorderedList(c, tokens)) && !this.processRule(c, startCol, tokens)) {
             this.processParagraph(tokens);
           }
         } break;

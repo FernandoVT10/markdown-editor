@@ -112,6 +112,7 @@ export namespace Tokens {
     range: TokenRange;
     marker: string;
     tokens: Token[];
+    ordered: boolean;
   }
 
   export interface List {
