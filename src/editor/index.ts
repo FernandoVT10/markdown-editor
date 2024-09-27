@@ -76,8 +76,11 @@ export default class Editor {
   }
 
   public updateCursorPos(cursorPos: CursorPos): void {
-    this.cursor.setPos(cursorPos);
-    this.emitCursorUpdate();
+    // update the cursor pos only if it's different
+    if(this.cursor.getLine() !== cursorPos.line || this.cursor.getCol() !== cursorPos.col) {
+      this.cursor.setPos(cursorPos);
+      this.emitCursorUpdate();
+    }
   }
 
   public updateCursorSelection(start: CursorPos, end: CursorPos): void {
