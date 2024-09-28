@@ -4,6 +4,7 @@ import MDNode from "../MDNode";
 import { Text } from "../nodes";
 import { Token, TokenRange } from "../../tokens";
 import Cursor, { CursorPos } from "../../cursor";
+import { CSS_CLASSES } from "../constants";
 
 interface SyntaxSymbolOpts {
   addSymbolAtEnd: boolean;
@@ -52,19 +53,19 @@ class SyntaxSymbol extends Trait {
   }
 
   private showStartSymbol(): void {
-    this.startSymbolNode.getHTMLEl().classList.remove("display-none");
+    this.startSymbolNode.getHTMLEl().classList.remove(CSS_CLASSES.hideElement);
   }
 
   private hideStartSymbol(): void {
-    this.startSymbolNode.getHTMLEl().classList.add("display-none");
+    this.startSymbolNode.getHTMLEl().classList.add(CSS_CLASSES.hideElement);
   }
 
   private showEndSymbol(): void {
-    this.endSymbolNode.getHTMLEl().classList.remove("display-none");
+    this.endSymbolNode.getHTMLEl().classList.remove(CSS_CLASSES.hideElement);
   }
 
   private hideEndSymbol(): void {
-    this.endSymbolNode.getHTMLEl().classList.add("display-none");
+    this.endSymbolNode.getHTMLEl().classList.add(CSS_CLASSES.hideElement);
   }
 
   private createStartRange(range: TokenRange): TokenRange {
@@ -88,10 +89,10 @@ class SyntaxSymbol extends Trait {
       this.opts.addSymbolAtEnd = true;
 
       // make the symbol at the end visible if it wasn't
-      this.endSymbolNode.getHTMLEl().classList.remove("display-none");
+      this.showEndSymbol();
     } else {
       this.opts.addSymbolAtEnd = false;
-      this.endSymbolNode.getHTMLEl().classList.add("display-none");
+      this.hideEndSymbol();
     }
 
     if(opts.neverHide) {

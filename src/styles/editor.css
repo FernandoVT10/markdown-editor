@@ -1,0 +1,82 @@
+:root {
+  --md-text-color: white;
+
+  --md-code-text: hsl(214 48% 70%);
+
+  --md-strong-text: #79aaeb;
+  --md-italic-text: #79aaeb;
+
+  --md-blockquote-border: #79aaeb;
+  --md-blockquote-bg: #11161e;
+}
+
+.md-editor {
+  outline: 0;
+  width: 100%;
+  height: fit-content;
+  color: var(--md-text-color);
+}
+
+.md-editor .md-subtree {
+  display: inline-block;
+}
+
+.md-editor .md-hide-el {
+  display: none !important;
+}
+
+.md-editor h1,
+.md-editor h2,
+.md-editor h3,
+.md-editor h4,
+.md-editor h5,
+.md-editor h6,
+.md-editor p {
+  margin: 0;
+}
+
+.md-editor span {
+  white-space: pre-wrap;
+}
+
+.md-editor code {
+  color: var(--md-code-text);
+}
+
+.md-editor strong {
+  color: var(--md-strong-text);
+}
+
+.md-editor i {
+  color: var(--md-italic-text);
+}
+
+.md-editor img {
+  width: 100%;
+}
+
+.md-editor blockquote {
+  border-left: solid 5px var(--md-blockquote-border);
+  margin: 0;
+  padding: 10px;
+  background: var(--md-blockquote-bg);
+}
+
+.md-editor ul {
+  margin: 0;
+  padding-left: 10px;
+}
+
+.md-editor li {
+  display: flex;
+  align-items: center;
+  list-style: none;
+}
+
+.md-editor li .list-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: white;
+}

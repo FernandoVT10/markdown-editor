@@ -5,6 +5,7 @@ import { Text } from "../nodes";
 import { Token } from "../../tokens";
 import { TokenRange } from "../../tokens";
 import Cursor, { CursorPos } from "../../cursor";
+import { CSS_CLASSES } from "../constants";
 
 class ListMark extends Trait {
   private mark: string;
@@ -21,7 +22,7 @@ class ListMark extends Trait {
     this.isOrdered = isOrdered;
 
     this.listDotEl = document.createElement("span");
-    this.listDotEl.classList.add("list-dot");
+    this.listDotEl.classList.add(CSS_CLASSES.listMarker);
 
     const markEl = this.markNode.getHTMLEl();
 
@@ -43,19 +44,19 @@ class ListMark extends Trait {
   }
 
   private showListDot(): void {
-    this.listDotEl.classList.remove("display-none");
+    this.listDotEl.classList.remove(CSS_CLASSES.hideElement);
   }
 
   private hideListDot(): void {
-    this.listDotEl.classList.add("display-none");
+    this.listDotEl.classList.add(CSS_CLASSES.hideElement);
   }
 
   private showMark(): void {
-    this.markNode.getHTMLEl().classList.remove("display-none");
+    this.markNode.getHTMLEl().classList.remove(CSS_CLASSES.hideElement);
   }
 
   private hideMark(): void {
-    this.markNode.getHTMLEl().classList.add("display-none");
+    this.markNode.getHTMLEl().classList.add(CSS_CLASSES.hideElement);
   }
 
   private show(): void {

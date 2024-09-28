@@ -1,11 +1,3 @@
-:root {
-  --code-text: hsl(214 48% 70%);
-  --strong-text: #79aaeb;
-
-  --blockquote-border: #79aaeb;
-  --blockquote-bg: #11161e;
-}
-
 body {
   background: #010101;
   padding: 0;
@@ -61,20 +53,9 @@ body {
   display: block;
 }
 
-.editor {
-  outline: 0;
-  width: 100%;
-  border: solid 1px hsl(217, 50%, 70%);
+.editor-container .md-editor {
   padding: 20px;
-  height: fit-content;
-}
-
-.editor .subtree {
-  display: inline-block;
-}
-
-.editor .display-none {
-  display: none;
+  border: solid 1px hsl(217, 50%, 70%);
 }
 
 .tokens-preview {
@@ -104,52 +85,6 @@ body {
 
 .tokens-preview ul li .range {
   color: #697886;
-}
-
-h1, h2, h3, h4, h5, h6, p {
-  margin: 0;
-}
-
-span {
-  white-space: pre-wrap;
-}
-
-code {
-  color: var(--code-text);
-}
-
-strong, i {
-  color: var(--strong-text);
-}
-
-img {
-  width: 100%;
-}
-
-blockquote {
-  border-left: solid 5px var(--blockquote-border);
-  margin: 0;
-  padding: 10px;
-  background: var(--blockquote-bg);
-}
-
-ul {
-  margin: 0;
-  padding-left: 10px;
-}
-
-li {
-  display: flex;
-  align-items: center;
-  list-style: none;
-}
-
-li .list-dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: white;
 }
 
 .cursor-pos {

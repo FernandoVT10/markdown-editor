@@ -5,6 +5,7 @@ import { DiffOp, DiffOpsTypes } from "../diff";
 import { parseToken } from "../../parser";
 import { isAParentToken } from "../../tokens";
 import { BlockTokens } from "../../tokens";
+import { CSS_CLASSES } from "../constants";
 
 export default class Subtree extends Trait {
   private nodes: MDNode[];
@@ -16,7 +17,7 @@ export default class Subtree extends Trait {
 
     this.subtreeContainer = document.createElement("div");
     // TODO: make a better way to handle the creating of elements with classes
-    this.subtreeContainer.classList.add("subtree");
+    this.subtreeContainer.classList.add(CSS_CLASSES.subtree);
     parentEl.appendChild(this.subtreeContainer);
 
     // fill parent element with childs' html elements
