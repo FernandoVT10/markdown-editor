@@ -55,9 +55,11 @@ export default class Cursor {
     this.selection = undefined;
   }
 
-  public setCol(col: number): void {
+  public setCol(col: number, updatePrevCol = true): void {
     this.pos.col = col;
-    this.prevColPos = col;
+
+    if(updatePrevCol) this.prevColPos = col;
+
     this.selection = undefined;
   }
 
@@ -99,7 +101,7 @@ export default class Cursor {
       this.setLine(this.pos.line + 1);
 
       const lineLen = this.getLineLen(this.pos.line);
-      this.setCol(Math.min(this.prevColPos, lineLen));
+      this.setCol(Math.min(this.prevColPos, lineLen), false);
     }
   }
 
@@ -109,7 +111,7 @@ export default class Cursor {
 
       const lineLen = this.getLineLen(this.pos.line);
 
-      this.setCol(Math.min(this.prevColPos, lineLen));
+      this.setCol(Math.min(this.prevColPos, lineLen), false);
     }
   }
 
