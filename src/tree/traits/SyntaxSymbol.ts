@@ -51,7 +51,6 @@ class SyntaxSymbol extends Trait {
     }
   }
 
-
   private showStartSymbol(): void {
     this.startSymbolNode.getHTMLEl().classList.remove("display-none");
   }
@@ -127,7 +126,8 @@ class SyntaxSymbol extends Trait {
       this.show();
 
       this.startSymbolNode.onCursorUpdate(cursor);
-      this.endSymbolNode.onCursorUpdate(cursor);
+
+      if(this.opts.addSymbolAtEnd) this.endSymbolNode.onCursorUpdate(cursor);
     } else {
       this.hide();
     }
@@ -137,7 +137,8 @@ class SyntaxSymbol extends Trait {
     const pos = this.startSymbolNode.getCursorPos(selNode, offset);
     if(pos) return pos;
 
-    return this.endSymbolNode.getCursorPos(selNode, offset);
+    if(this.opts.addSymbolAtEnd)
+      return this.endSymbolNode.getCursorPos(selNode, offset);
   }
 
   public updateRange(token: Token): void {
