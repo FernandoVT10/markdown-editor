@@ -105,6 +105,8 @@ function setup(editor: Editor): void {
       oldCursorPos: editor.cursor.getPosCopy(),
       newCursorPos,
     });
+
+    editor.updateTree();
   });
 }
 
